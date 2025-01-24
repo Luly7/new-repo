@@ -1,0 +1,17 @@
+ADR R0 ACHAR ;
+ADR R1 BCHAR ;
+
+LDRB R0 [R0] ;
+SWI 2 ;
+LDRB R0 [R1] ;
+SWI 2 ;
+MVI R0 10 ;
+SWI 2 ;
+
+B DONE ;
+
+
+ACHAR .BYTE 'a' ;
+BCHAR .BYTE 'b' ;
+
+DONE SWI 0 ;
