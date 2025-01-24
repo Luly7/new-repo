@@ -1,4 +1,4 @@
-from .instructions import instructions
+from constants import instructions
 import struct
 
 
@@ -48,6 +48,8 @@ class CPU:
 
             if opcode in self.ops:
                 self.ops[opcode](operands)
+                if self.verbose:
+                    print(self.registers)
             else:
                 self.system_call(103)
                 print(f"Unknown opcode: {opcode}")
@@ -93,7 +95,8 @@ class CPU:
         first_register, second_register, third_register, _, _ = operands
         self.registers[first_register] = self.registers[second_register] * self.registers[third_register]
         if self.verbose:
-            print(f" - MUL {first_register} = {second_register} * {third_register}")
+            print(f" - MUL {self.registers[second_register] * self.registers[third_register]} ({third_register}) = {self.registers[second_register]} ({second_register}) * {self.registers[third_register]} ({third_register})")
+
             
     def _div(self, operands):
         """
@@ -109,7 +112,8 @@ class CPU:
         
         self.registers[first_register] = self.registers[second_register] // self.registers[third_register]
         if self.verbose:
-            print(f" - DIV {first_register} = {second_register} / {third_register}")
+            print(f" - DIV {self.registers[second_register] // self.registers[third_register]} ({first_register}) = {self.registers[second_register]} ({second_register}) / {self.registers[third_register]} ({third_register})")
+
 
     def _mov(self, operands):
         """

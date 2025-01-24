@@ -38,7 +38,7 @@ def load_osx(filepath):
         
         
 def main():
-    load_osx("test.osx")
+    load_osx("test2.osx")
 
 if __name__ == "__main__":
     main()

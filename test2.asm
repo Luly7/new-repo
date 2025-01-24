@@ -1,0 +1,17 @@
+MVI R1 20 ;
+.WORD 1 ;
+.BYTE 'a' ;
+.SPACE 1 ;
+
+; MVI R2 10 ;
+; ADD R0 R1 R2 ;
+; SUB R0 R1 R2 ;
+; MUL R0 R1 R2 ;
+; DIV R0 R1 R2 ;
+; ADR R1 RESULT ;
+
+
+; MOV R0 R1 ;
+
+; RESULT .WORD 0 ;
+; SWI 1 ;
