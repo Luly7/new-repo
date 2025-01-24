@@ -1,10 +1,9 @@
 from hardware.Memory import Memory
 from struct import unpack
 from hardware.CPU import CPU
-from system_codes import SYSTEM_CODES
+from hardware.Clock import Clock
+from constants import USER_MODE, KERNEL_MODE, SYSTEM_CODES, INSTRUCTIONS
 
-USER_MODE = 0x01
-KERNEL_MODE = 0x00
 
 
 
@@ -15,6 +14,7 @@ class System:
     def __init__(self):
         self._memory = Memory('100B')
         self._CPU = CPU(self._memory, self)
+        self._clock = Clock()
         self.mode = self._memory[0][0]
         self.loader = None
         self.verbose = False
@@ -23,9 +23,9 @@ class System:
         self.system_codes = SYSTEM_CODES
 
     def switch_mode(self):
-        newMode = USER_MODE if self.mode == KERNEL_MODE else KERNEL_MODE
-        if self.verbose: self.print(f"Switching user_mode from {self.mode} to {newMode}")
-        self._memory[0][0] = newMode
+        new_mode = USER_MODE if self.mode == KERNEL_MODE else KERNEL_MODE
+        if self.verbose: self.print(f"Switching user_mode from {self.mode} to {new_mode}")
+        self._memory[0][0] = new_mode
         self.mode = self._memory[0][0]
 
     def call(self, cmd, *args):
@@ -104,10 +104,13 @@ class System:
                 # Load program into memory
                 i = loader
 
+                
+
                 while True:
                     chunk = f.read(6) # There are 6 bytes per instruction
                     if not chunk: # end of file
                         break
+
 
                     if (len(chunk) < 6):
                         print('incomplete instruction found, terminating', chunk)
