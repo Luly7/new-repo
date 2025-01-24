@@ -2,7 +2,8 @@ from hardware.Memory import Memory
 from struct import unpack
 from hardware.CPU import CPU
 from hardware.Clock import Clock
-from constants import USER_MODE, KERNEL_MODE, SYSTEM_CODES, INSTRUCTIONS
+from . import PCB
+from constants import USER_MODE, KERNEL_MODE, SYSTEM_CODES, instructions
 
 
 
@@ -21,6 +22,7 @@ class System:
         self.programs = {}
         self.errors = []
         self.system_codes = SYSTEM_CODES
+        self.PCBs = {}
 
     def switch_mode(self):
         new_mode = USER_MODE if self.mode == KERNEL_MODE else KERNEL_MODE
@@ -52,80 +54,100 @@ class System:
                 print(e)
                 self.system_code(100)
 
-                
         else:
             print(f"Unknown command: {cmd}")
             self.system_code(103)
         
         
+    def _handle_error(self, code, message):
+        print(message)
+        self.system_code(code)
+        return None
+    
+    def _read_header(self, f):
+        header = f.read(12)
+        byte_size, pc, loader = unpack('III', header) 
+        self.print(f" - Loading program with {byte_size} bytes, PC at {pc}, loader at {loader}")
+        lines = byte_size // 6
+        return byte_size, pc, loader, lines
+    
+    def _is_valid_loader(self, loader, lines):
+        if loader > self._memory.rows:
+            self._handle_error(110, f"Memory location {loader} is out of bounds.\nMemory has {self._memory.rows} lines available.")
+            return False
+        
+        if loader + lines > self._memory.rows:
+            self._handle_error(102, f"Not enough memory to store program at location {loader}.\nProgram requires memory to have {lines} lines available.\nMemory has {self._memory.rows - loader} lines available.")
+            return False
+        
+        if self._memory[loader][0] != 0 and self.loader is not None:
+            self._handle_error(102, f"Memory location {loader} already contains a program.")
+            return False
+        
+        return True
+    
+    def _load_instructions(self, f, loader):
+        while True:
+            opcode_byte = f.read(1)
+            if not opcode_byte: # end of file
+                break
 
+            opcode_number = unpack('B', opcode_byte)[0]
+            opcode_instruction = instructions[opcode_number]
+            if (opcode_instruction in ['ADD', 'SUB', 'MUL', 'DIV']): # 2 Unused bytes
+                self.load_instruction(f, opcode_byte, loader, opcode_instruction, 3)
+
+            elif (opcode_instruction in ['MOV', 'STR', 'STRB', 'LDR', 'LDRB', 'CMP', 'AND', 'ORR', 'EOR']):
+                self.load_instruction(f, opcode_byte, loader, opcode_instruction, 2)
+
+            elif (opcode_instruction in ['MVI', 'ADR']):
+                self.load_instruction(f, opcode_byte, loader, opcode_instruction, 5)
+
+            elif (opcode_instruction in ['B', 'BL', 'BNE', 'BGT', 'BLT', 'BEQ', 'SWI']):
+                self.load_instruction(f, opcode_byte, loader, opcode_instruction, 4)
+
+            elif opcode_instruction in ['BX']:
+                self.load_instruction(f, opcode_byte, loader, opcode_instruction, 1)
+
+            else:
+                self._memory[loader][0] = opcode_byte
+                for i in range(1,5):
+                    byte = f.read(1)
+                    if not byte:
+                        break
+                    self._memory[loader][i] = unpack('B', byte)[0]
+            
+            loader += 1
+    
     def load_file(self, filepath, *args):
         """ Load file into memory """
         if not filepath:
-            print("Please specify the file path.")
-            self.system_code(103)
-            return None
+            return self._handle_error(103, "Please specify the file path.")
         
         if len(args) > 0:
-            print("load command only takes one argument, the file path.")
-            self.system_code(103)
-            return None
+            return self._handle_error(103, "load command only takes one argument, the file path.")
         
         try:
             with open(filepath, 'rb') as f:
                 # Unpack header, which consists of 3 integers (12 bytes)
-                header = f.read(12)
-                byteSize, pc, loader = unpack('III', header) 
-                self.print(f" - Loading program with {byteSize} bytes, PC at {pc}, loader at {loader}")
-                lines = byteSize // 6
-
-                # Check if loader is out of bounds
-                if loader > self._memory.rows:
-                    print(f"Memory location {loader} is out of bounds.\n") + \
-                    (f"Memory has {self._memory.rows} lines available.")
-                    self.system_code(110)
+                byte_size, pc, loader, lines = self._read_header(f)
                 
-                # Check if there is enough memory to store the program
-                if loader + lines > self._memory.rows:
-                    print(f"Not enough memory to store program at location {loader}.")
-                    print(f"Program requires memory to have {lines} lines available.")
-                    print(f"Memory has {self._memory.rows - loader} lines available.")
-                    self.system_code(102)
-
-                # Check if there is already a program loaded at the loader location
-                if self._memory[loader][0] != 0 and self.loader is not None:
-                    print(f"Memory location {loader} already contains a program.")
-                    self.system_code(102)
+                if not self._is_valid_loader(loader, lines):
+                    return None
                 
                 self.loader = loader
 
                 self.programs[filepath] = {'program': filepath, 'start': loader, 'end': loader + lines}
+
+                self._load_instructions(f, loader)
                 
-                # Load program into memory
-                i = loader
+                pid = len(self.PCBs) + 1
+                registers = [0]*16
+                state = 'READY'
+                pcb = PCB(pid, pc, registers, state)
+                self.PCBs[filepath] = pcb
 
-                
-
-                while True:
-                    chunk = f.read(6) # There are 6 bytes per instruction
-                    if not chunk: # end of file
-                        break
-
-
-                    if (len(chunk) < 6):
-                        print('incomplete instruction found, terminating', chunk)
-                        self.system_code(103)
-                        break # skip incomplete instructions
-
-                    values = unpack('6B', chunk)
-                    self.print(f" - Loading values {values} into memory location {i}")
-
-
-                    for j in range(6):
-                        self._memory[i][j] = values[j] if values[j] != 32 else 0 # 32 is the ASCII code for space
-                    i += 1
-                
-                print(f"Program loaded at memory location {loader}")
+                print("Program loaded at memory location {}".format(self.programs[filepath]['start']))
                 self.system_code(1)
 
         except FileNotFoundError:
@@ -138,8 +160,16 @@ class System:
             print(e)
             return None
         
+    def load_instruction(self, f, opcode_byte, loader, instruction, byte_count):
+        opcode_byte += f.read(byte_count)
+        op = unpack(f'{byte_count+1}B', opcode_byte)
+        self.print(f" - Loading instruction {instruction} with values {op} into memory location {loader}")
+        for i in range(byte_count+1):
+            self._memory[loader][i] = op[i]
+        f.read(5 - byte_count)
+        
     def run_progam(self, *args):
-        if self.loader is None:
+        if len(self.PCBs) == 0:
             self.system_code(101)
             print("No program loaded.")
             return None
@@ -151,10 +181,17 @@ class System:
         
         program = args[0]
         
-        pcb = self.programs[program]
+        if program not in self.PCBs:
+            self.system_code(101)
+            print(f"Program {program} not found.")
+            return None
+        
+        pcb = self.PCBs[program]
 
         self._CPU.run_program(pcb, self.verbose)
         self.loader = None
+
+
 
     def coredump(self):
         if self.verbose:
