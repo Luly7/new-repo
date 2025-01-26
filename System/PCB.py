@@ -5,8 +5,11 @@ class PCB:
         self.registers = registers
         self.state = state
         self.states = ['NEW', 'READY', 'RUNNING', 'WAITING', 'TERMINATED']
-        self.start_line = None
-        self.end_line = None
+        self.loader = None
+        self.data_start = None
+        self.data_end = None
+        self.code_start = None
+        self.code_end = None
         self.execution_time = None
         self.arrival_time = None
         self.start_time = None
@@ -21,6 +24,12 @@ class PCB:
         
     def __getitem__(self, key):
         return getattr(self, key)
+    
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
+
+    def __compare__(self, other):
+        return self.pid == other.pid
     
     def set_state(self, new_state):
         self.state = new_state

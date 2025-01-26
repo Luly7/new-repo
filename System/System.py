@@ -16,7 +16,7 @@ class System:
         self._memory = Memory('100B')
         self._CPU = CPU(self._memory, self)
         self._clock = Clock()
-        self.mode = self._memory[0][0]
+        self.mode = self._memory[0]
         self.loader = None
         self.verbose = False
         self.programs = {}
@@ -32,8 +32,8 @@ class System:
     def switch_mode(self):
         new_mode = USER_MODE if self.mode == KERNEL_MODE else KERNEL_MODE
         if self.verbose: self.print(f"Switching user_mode from {self.mode} to {new_mode}")
-        self._memory[0][0] = new_mode
-        self.mode = self._memory[0][0]
+        self._memory[0] = new_mode
+        self.mode = self._memory[0]
 
     def call(self, cmd, *args):
             
@@ -77,7 +77,6 @@ class System:
         pcb.set_arrival_time(arrival_time)
         self.run_pcb(pcb)
 
-
     def load_file(self, filepath, arrival_time=0, *args):
         """ Load file into memory """
         if not filepath:
@@ -89,22 +88,18 @@ class System:
         try:
             with open(filepath, 'rb') as f:
                 # Unpack header, which consists of 3 integers (12 bytes)
-                byte_size, pc, loader, lines = self._read_header(f)
+                byte_size, pc, loader = self._read_header(f)
                 
-                if not self._is_valid_loader(loader, lines):
+                if not self._is_valid_loader(loader, byte_size):
+                    self.system_codes(102)
                     return None
                 
-                self.loader = loader
-
-                self.programs[filepath] = {'program': filepath, 'start': loader, 'end': loader + lines}
-
-                self._load_instructions(f, pc, loader)
-                
-                pcb = self.createPCB(pc, loader, lines, filepath)
+                pcb = self.createPCB(pc, filepath)
+                self._load_instructions(f, pc, loader, byte_size, pcb)
 
                 self.ready_queue.append(pcb)
 
-                print("Program loaded at memory location {}".format(self.programs[filepath]['start']))
+                self.print("Program loaded at memory location {}".format(pcb['loader']))
                 self.system_code(1)
                 return pcb
 
@@ -118,14 +113,12 @@ class System:
             print(e)
             return None
         
-    def createPCB(self, pc, loader, lines, filepath):
+    def createPCB(self, pc, filepath):
         pid = len(self.PCBs) + 1
         registers = [0]*16
         state = 'NEW'
         pcb = PCB(pid, pc, registers, state)
-        pcb.set_start_line(loader + pc)
-        pcb.set_end_line(loader + lines)
-        pcb.set_file(filepath)
+        pcb['file'] = filepath 
         self.PCBs[filepath] = pcb
         return pcb
         
@@ -138,82 +131,56 @@ class System:
         header = f.read(12)
         byte_size, pc, loader = unpack('III', header) 
         self.print(f" - Loading program with {byte_size} bytes, PC at {pc}, loader at {loader}")
-        lines = byte_size // 6
-        return byte_size, pc, loader, lines
+        return byte_size, pc, loader
     
-    def _is_valid_loader(self, loader, lines):
-        if loader > self._memory.rows:
-            self._handle_error(110, f"Memory location {loader} is out of bounds.\nMemory has {self._memory.rows} lines available.")
+    def _is_valid_loader(self, loader, byte_size):
+        if loader > self._memory.size:
+            self._handle_error(110, f"Loader address {loader} is out of bounds.")
             return False
         
-        if loader + lines > self._memory.rows:
-            self._handle_error(102, f"Not enough memory to store program at location {loader}.\nProgram requires memory to have {lines} lines available.\nMemory has {self._memory.rows - loader} lines available.")
+        if loader + byte_size > self._memory.size:
+            self._handle_error(102, f"Not enough memory to store program at location {loader}.\nProgram requires {byte_size} bytes.\nMemory has {self._memory.size - loader} bytes available.")
             return False
         
-        if self._memory[loader][0] != 0 and self.loader is not None:
+        if self._memory[loader] != 0 and self.loader is not None:
             self._handle_error(102, f"Memory location {loader} already contains a program.")
             return False
         
         return True
     
-    def _load_instructions(self, f, pc, loader):
-        j = 0
-        for i in range(pc): # Load data into memory sequentially
-            b = f.read(1)
-            self._memory[loader][j] = unpack('B', b)[0]
-            j += 1
-            if j == 6:
+    def _load_instructions(self, f, pc, loader, byte_size, pcb):
+
+        pcb['loader'] = loader
+        # Load data section
+        if (pc != loader):
+            self.print(f" - Loading data section into memory starting at {loader}")
+            pcb['data_start'] = loader
+            while loader <= pc:
+                b = f.read(1)
+                byte = unpack('B', b)[0]
+                self._memory[loader] = byte
                 loader += 1
-                j = 0
-        loader += 1
+            pcb['data_end'] = loader - 1
+        else:
+            pcb['data_start'] = pcb['data_end'] = None
 
-        while True:
-            opcode_byte = f.read(1)
-            if not opcode_byte: # end of file
-                break
-
-            opcode_number = unpack('B', opcode_byte)[0]
-            opcode_instruction = instructions[opcode_number]
-            if (opcode_instruction in ['ADD', 'SUB', 'MUL', 'DIV']): # 2 Unused bytes
-                self.load_instruction(f, opcode_byte, loader, opcode_instruction, 3)
-
-            elif (opcode_instruction in ['MOV', 'STR', 'STRB', 'LDR', 'LDRB', 'CMP', 'AND', 'ORR', 'EOR']):
-                self.load_instruction(f, opcode_byte, loader, opcode_instruction, 2)
-
-            elif (opcode_instruction in ['MVI', 'ADR']):
-                self.load_instruction(f, opcode_byte, loader, opcode_instruction, 5)
-
-            elif (opcode_instruction in ['B', 'BL', 'BNE', 'BGT', 'BLT', 'BEQ', 'SWI']):
-                self.load_instruction(f, opcode_byte, loader, opcode_instruction, 4)
-
-            elif opcode_instruction in ['BX']:
-                self.load_instruction(f, opcode_byte, loader, opcode_instruction, 1)
-
-            else:
-                self._memory[loader][0] = opcode_byte
-                for i in range(1,5):
-                    byte = f.read(1)
-                    if not byte:
-                        break
-                    self._memory[loader][i] = unpack('B', byte)[0]
-            
+        # Load code section
+        pcb['code_start'] = loader
+        while loader <= byte_size:
+            b = f.read(1)
+            byte = unpack('B', b)[0]
+            self._memory[loader] = byte
             loader += 1
+        pcb['code_end'] = loader - 1
     
-    def load_instruction(self, f, opcode_byte, loader, instruction, byte_count):
-        opcode_byte += f.read(byte_count)
-        op = unpack(f'{byte_count+1}B', opcode_byte)
-        self.print(f" - Loading instruction {instruction} with values {op} into memory location {loader}")
-        for i in range(byte_count+1):
-            self._memory[loader][i] = op[i]
-        f.read(5 - byte_count)
         
     def run_pcb(self, pcb):
-        if pcb not in self.PCBs:
+        if pcb['file'] not in self.PCBs:
             self.system_code(101)
             print(f"Program {pcb} not found.")
             return None
         
-        self._CPU.run_pcb(pcb, self.verbose)
+        self._CPU.run_program(pcb, self.verbose)
 
     def run_progam(self, *args):
         if len(self.PCBs) == 0:
@@ -243,13 +210,13 @@ class System:
     def coredump(self):
         if self.verbose:
             print("Coredump:")
-            for i in range(self._memory.rows):
-                print(self._memory[i])
+            print(self._memory)
 
         else:
             with open('memory.txt', 'w') as f:
-                for i in range(self._memory.rows):
-                    f.write(str(self._memory[i]) + '\n')
+                f.write(str(self._memory))
+                # for i in range(self._memory.rows):
+                #     f.write(str(self._memory[i]) + '\n')
             print("Memory dumped to memory.txt")
     
     def errordump(self):

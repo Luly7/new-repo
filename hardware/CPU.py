@@ -38,9 +38,11 @@ class CPU:
     
     def run_program(self, pcb, verbose=False):
         if verbose: self.verbose = True
-        self.setPC(pcb['start_line'])
+        code_start = pcb['code_start']
+        code_end = pcb['code_end']
+        self.registers[self.pc] = code_start
         running = True
-        while running and self.registers[self.pc] < pcb['end_line']:
+        while running and self.registers[self.pc] < code_end:
             instruction = self._fetch()
             opcode, operands = self._decode(instruction)
 
@@ -182,7 +184,8 @@ class CPU:
         """
             Fetch the next instruction
         """
-        instruction = self.memory[self.registers[self.pc]]
+        pc = self.registers[self.pc]
+        instruction = self.memory[pc:pc+6]
         self.registers[self.pc] += 1
         return instruction
     
