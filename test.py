@@ -29,6 +29,11 @@ def load_osx(filepath):
             print(header)
             print(byteSize, pc, loader)
 
+            for i in range(pc):
+                f.read(1)
+
+            
+
             chunk = f.read(6)
             while chunk:
                 print(chunk)
@@ -38,7 +43,8 @@ def load_osx(filepath):
         
         
 def main():
-    load_osx("test2.osx")
+    filepath = sys.argv[1]
+    load_osx(filepath)
 
 if __name__ == "__main__":
     main()

@@ -32,12 +32,15 @@ class CPU:
     def system_call(self, code):
         self.system.system_code(code)
 
+    def run_pcb(self, pcb, verbose=False):
+        if verbose: self.verbose = True
+        self.setPC(pcb['start_line'])
     
     def run_program(self, pcb, verbose=False):
         if verbose: self.verbose = True
-        self.setPC(pcb['start'])
+        self.setPC(pcb['start_line'])
         running = True
-        while running and self.registers[self.pc] < pcb['end']:
+        while running and self.registers[self.pc] < pcb['end_line']:
             instruction = self._fetch()
             opcode, operands = self._decode(instruction)
 

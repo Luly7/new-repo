@@ -2,7 +2,7 @@ from hardware.Memory import Memory
 from struct import unpack
 from hardware.CPU import CPU
 from hardware.Clock import Clock
-from . import PCB
+from .PCB import PCB
 from constants import USER_MODE, KERNEL_MODE, SYSTEM_CODES, instructions
 
 
@@ -24,6 +24,11 @@ class System:
         self.system_codes = SYSTEM_CODES
         self.PCBs = {}
 
+        # Process management queues
+        self.ready_queue = []
+        self.job_queue = []
+        self.io_queue = []
+
     def switch_mode(self):
         new_mode = USER_MODE if self.mode == KERNEL_MODE else KERNEL_MODE
         if self.verbose: self.print(f"Switching user_mode from {self.mode} to {new_mode}")
@@ -37,7 +42,8 @@ class System:
             'coredump': self.coredump,
             'errordump': self.errordump,
             "run": self.run_progam, 
-            "registers": lambda: print(self._CPU)
+            "registers": lambda: print(self._CPU),
+            "execute": self.execute,
         }
 
         if cmd in commands:
@@ -47,8 +53,9 @@ class System:
                 commands[cmd](*args) # look up the command in the dictionary and execute it
                 self.switch_mode() # switch back to user mode after executing the command
                 self.verbose = False # verbose is set to true in the shell, after running the cmd reset it
-            except TypeError:
+            except TypeError as e:
                 self.system_code(103)
+                print(e)
                 print(f"Invalid arguments for command: {cmd}")
             except Exception as e:
                 print(e)
@@ -58,6 +65,69 @@ class System:
             print(f"Unknown command: {cmd}")
             self.system_code(103)
         
+    def execute(self, *args):
+        if len(args) < 2:
+            self.system_code(103)
+            print("Please specify the program to execute and arrival time.")
+
+        filepath = args[0]
+        arrival_time = args[1]
+
+        pcb = self.load_file(filepath, arrival_time)
+        pcb.set_arrival_time(arrival_time)
+        self.run_pcb(pcb)
+
+
+    def load_file(self, filepath, arrival_time=0, *args):
+        """ Load file into memory """
+        if not filepath:
+            return self._handle_error(103, "Please specify the file path.")
+        
+        if len(args) > 0:
+            return self._handle_error(103, "load command only takes one argument, the file path.")
+        
+        try:
+            with open(filepath, 'rb') as f:
+                # Unpack header, which consists of 3 integers (12 bytes)
+                byte_size, pc, loader, lines = self._read_header(f)
+                
+                if not self._is_valid_loader(loader, lines):
+                    return None
+                
+                self.loader = loader
+
+                self.programs[filepath] = {'program': filepath, 'start': loader, 'end': loader + lines}
+
+                self._load_instructions(f, pc, loader)
+                
+                pcb = self.createPCB(pc, loader, lines, filepath)
+
+                self.ready_queue.append(pcb)
+
+                print("Program loaded at memory location {}".format(self.programs[filepath]['start']))
+                self.system_code(1)
+                return pcb
+
+        except FileNotFoundError:
+            print("File not found")
+            self.system_code(109)
+            return None
+        except Exception as e:
+            self.system_code(100)
+            print("An error occurred while loading the file.")
+            print(e)
+            return None
+        
+    def createPCB(self, pc, loader, lines, filepath):
+        pid = len(self.PCBs) + 1
+        registers = [0]*16
+        state = 'NEW'
+        pcb = PCB(pid, pc, registers, state)
+        pcb.set_start_line(loader + pc)
+        pcb.set_end_line(loader + lines)
+        pcb.set_file(filepath)
+        self.PCBs[filepath] = pcb
+        return pcb
         
     def _handle_error(self, code, message):
         print(message)
@@ -86,7 +156,17 @@ class System:
         
         return True
     
-    def _load_instructions(self, f, loader):
+    def _load_instructions(self, f, pc, loader):
+        j = 0
+        for i in range(pc): # Load data into memory sequentially
+            b = f.read(1)
+            self._memory[loader][j] = unpack('B', b)[0]
+            j += 1
+            if j == 6:
+                loader += 1
+                j = 0
+        loader += 1
+
         while True:
             opcode_byte = f.read(1)
             if not opcode_byte: # end of file
@@ -119,47 +199,6 @@ class System:
             
             loader += 1
     
-    def load_file(self, filepath, *args):
-        """ Load file into memory """
-        if not filepath:
-            return self._handle_error(103, "Please specify the file path.")
-        
-        if len(args) > 0:
-            return self._handle_error(103, "load command only takes one argument, the file path.")
-        
-        try:
-            with open(filepath, 'rb') as f:
-                # Unpack header, which consists of 3 integers (12 bytes)
-                byte_size, pc, loader, lines = self._read_header(f)
-                
-                if not self._is_valid_loader(loader, lines):
-                    return None
-                
-                self.loader = loader
-
-                self.programs[filepath] = {'program': filepath, 'start': loader, 'end': loader + lines}
-
-                self._load_instructions(f, loader)
-                
-                pid = len(self.PCBs) + 1
-                registers = [0]*16
-                state = 'READY'
-                pcb = PCB(pid, pc, registers, state)
-                self.PCBs[filepath] = pcb
-
-                print("Program loaded at memory location {}".format(self.programs[filepath]['start']))
-                self.system_code(1)
-
-        except FileNotFoundError:
-            print("File not found")
-            self.system_code(109)
-            return None
-        except Exception as e:
-            self.system_code(100)
-            print("An error occurred while loading the file.")
-            print(e)
-            return None
-        
     def load_instruction(self, f, opcode_byte, loader, instruction, byte_count):
         opcode_byte += f.read(byte_count)
         op = unpack(f'{byte_count+1}B', opcode_byte)
@@ -168,6 +207,14 @@ class System:
             self._memory[loader][i] = op[i]
         f.read(5 - byte_count)
         
+    def run_pcb(self, pcb):
+        if pcb not in self.PCBs:
+            self.system_code(101)
+            print(f"Program {pcb} not found.")
+            return None
+        
+        self._CPU.run_pcb(pcb, self.verbose)
+
     def run_progam(self, *args):
         if len(self.PCBs) == 0:
             self.system_code(101)
