@@ -186,7 +186,7 @@ class CPU:
         """
         pc = self.registers[self.pc]
         instruction = self.memory[pc:pc+6]
-        self.registers[self.pc] += 1
+        self.registers[self.pc] += 6
         return instruction
     
     def setPC(self, value):

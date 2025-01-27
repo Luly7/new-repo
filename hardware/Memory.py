@@ -22,7 +22,7 @@ class Memory:
         return f"<Memory size={self.size} bytes>"
 
     def __str__(self):
-        string = ''
+        string = '\n'
         l = 0
         for i in range(self.rows):
             if i % 5 == 0:
@@ -31,7 +31,10 @@ class Memory:
             l += 6
             for j in range(self.cols):
                 index = i * self.cols + j
-                string += f"{self._memory[index]:02X} "
+                if index < len(self._memory):
+                    string += f"{self._memory[index]:02X} "
+                else:
+                    string += "   "
             string += '\n'
         return string
     

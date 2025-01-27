@@ -40,7 +40,7 @@ class System:
             'load': self.load_file,
             'coredump': self.coredump,
             'errordump': self.errordump,
-            "run": self.run_progam, 
+            "run": self.run_program, 
             "registers": lambda: print(self._CPU),
             "execute": self.execute,
         }
@@ -167,7 +167,7 @@ class System:
 
         # Load code section
         pcb['code_start'] = loader
-        while loader <= byte_size:
+        while loader < byte_size:
             instruction = f.read(6)
             self._memory[loader:loader+6] = instruction
             loader += 6
@@ -182,7 +182,7 @@ class System:
         
         self._CPU.run_program(pcb, self.verbose)
 
-    def run_progam(self, *args):
+    def run_program(self, *args):
         if len(self.PCBs) == 0:
             self.system_code(101)
             print("No program loaded.")
