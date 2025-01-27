@@ -14,6 +14,7 @@ class TestSystem(unittest.TestCase):
         self.str_file = 'tests/str.osx'
         self.strb_file = 'tests/strb.osx'
         self.ldr_file = 'tests/ldr.osx'
+        self.ldrb_file = 'tests/ldrb.osx'
         self.b_file   = 'tests/b.osx'
         self.bl_file  = 'tests/bl.osx'
         self.bx_file  = 'tests/bx.osx'
@@ -66,6 +67,11 @@ class TestSystem(unittest.TestCase):
         self.system.call('load', self.ldr_file)
         self.system.call('run', self.ldr_file)
         self.assertEqual(self.system._CPU.registers[0], 300)
+    
+    def test_ldrb(self):
+        self.system.call('load', self.ldrb_file)
+        self.system.call('run', self.ldrb_file)
+        self.assertEqual(self.system._CPU.registers[0], 98)
 
     def test_b(self):
         self.system.call('load', self.b_file)

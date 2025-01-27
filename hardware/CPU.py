@@ -29,6 +29,7 @@ class CPU:
                 "ADR": self._adr,
                 "STRB": self._strb,
                 "LDR": self._ldr,
+                "LDRB": self._ldrb,
 
                 # Branching
                 "B": self._b,
@@ -216,6 +217,19 @@ class CPU:
         self.registers[source_register] = value
         if self.verbose:
             print(f" - LDR {source_register} <= MEM[{addess_register}]")
+
+    def _ldrb(self, operands):
+        """
+            Load byte from memory location pointed to by one register into another register
+            LDRB R1 R2
+            R1 <= byte(MEM[R2])
+        """    
+        source_register, addess_register, *rest = operands
+        address = self.registers[addess_register]
+        value = self.memory[address]
+        self.registers[source_register] = value
+        if self.verbose:
+            print(f" - LDRB {source_register} <= MEM[{addess_register}]")
 
     def _b(self, operands):
         """
