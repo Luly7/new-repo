@@ -23,6 +23,7 @@ class TestSystem(unittest.TestCase):
         self.cmp_file = 'tests/cmp.osx'
         self.and_file = 'tests/and.osx'
         self.orr_file = 'tests/orr.osx'
+        self.eor_file = 'tests/eor.osx'
 
 
     def test_add(self):
@@ -115,6 +116,13 @@ class TestSystem(unittest.TestCase):
         self.system.call('load', self.orr_file)
         self.system.call('run', self.orr_file)
         self.assertEqual(self.system._CPU.registers[2], 1)
+        self.assertEqual(self.system._CPU.registers[3], 1)
+        self.assertEqual(self.system._CPU.registers[4], 0)
+
+    def test_eor(self):
+        self.system.call('load', self.eor_file)
+        self.system.call('run', self.eor_file)
+        self.assertEqual(self.system._CPU.registers[2], 0)
         self.assertEqual(self.system._CPU.registers[3], 1)
         self.assertEqual(self.system._CPU.registers[4], 0)
 

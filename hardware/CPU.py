@@ -347,7 +347,10 @@ class CPU:
             RZ = R1 ^ R2
         """
         first_register, second_register, *rest = operands
-        self.registers[self.z] = self.registers[first_register] ^ self.registers[second_register]
+        val1 = self.registers[first_register]
+        val2 = self.registers[second_register]
+        val = val1 ^ val2
+        self.registers[self.z] = val
         if self.verbose:
             print(f" - EOR {self.registers[self.z]} = {self.registers[first_register]} ({second_register}) ^ {self.registers[second_register]} ({second_register})")
             
