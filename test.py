@@ -14,12 +14,14 @@ class TestSystem(unittest.TestCase):
         self.mov_file = 'tests/mov.osx'
         self.adr_file = 'tests/adr.osx'
         self.str_file = 'tests/str.osx'
+        self.strb_file = 'tests/strb.osx'
         self.b_file   = 'tests/b.osx'
         self.bl_file  = 'tests/bl.osx'
         self.bx_file  = 'tests/bx.osx'
         self.bne_file = 'tests/bne.osx'
         self.not_bne_file = 'tests/not_bne.osx'
         self.cmp_file = 'tests/cmp.osx'
+
 
     def test_add(self):
         self.system.call('load', self.add_file)
@@ -55,6 +57,11 @@ class TestSystem(unittest.TestCase):
         self.system.call('load', self.str_file)
         self.system.call('run', self.str_file)
         self.assertTrue(1)
+
+    def test_strb(self):
+        self.system.call('load', self.strb_file)
+        self.system.call('run', self.strb_file)
+        self.assertEqual(self.system._memory[2], 97)
 
     def test_b(self):
         self.system.call('load', self.b_file)
@@ -100,7 +107,7 @@ def main():
     if (len(sys.argv) == 2):
         filepath = sys.argv[1]
     else:
-        filepath = 'test2.osx'
+        filepath = 'test.osx'
 
     
     pcb = load_into_system(system, filepath)
@@ -110,5 +117,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # unittest.main()
-    main()
+    unittest.main()
+    # main()

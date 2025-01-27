@@ -27,6 +27,7 @@ class CPU:
                 "MVI": self._mvi,
                 "STR": self._str,
                 "ADR": self._adr,
+                "STRB": self._strb,
 
                 # Branching
                 "B": self._b,
@@ -187,6 +188,20 @@ class CPU:
         self.memory[address:address+4] = struct.pack('<I', value)
         if self.verbose:
             print(f" - STR {source_register} <= MEM[{addess_register}]")
+
+    def _strb(self, operands):
+        """
+            Store byte from one register into memory location 
+            pointed to by another register
+            STRB R1 R2
+            MEM[R2] <= byte(memory[R1])
+        """    
+        source_register, addess_register, *rest = operands
+        address = self.registers[addess_register]
+        value = self.memory[self.registers[source_register]]
+        self.memory[address] = value & 0xFF
+        if self.verbose:
+            print(f" - STRB {source_register} <= MEM[{addess_register}]")
 
     def _b(self, operands):
         """
