@@ -321,7 +321,10 @@ class CPU:
             RZ = R1 & R2
         """
         first_register, second_register, third_register, _, _ = operands
-        self.registers[first_register] = self.registers[second_register] & self.registers[third_register]
+        val2 = self.registers[second_register]
+        val3 = self.registers[third_register]
+        val = val2 & val3
+        self.registers[first_register] = val
         if self.verbose:
             print(f" - AND {self.registers[second_register] & self.registers[third_register]} ({third_register}) = {self.registers[second_register]} ({second_register}) & {self.registers[third_register]} ({third_register})")
 
