@@ -22,6 +22,7 @@ class TestSystem(unittest.TestCase):
         self.not_bne_file = 'tests/not_bne.osx'
         self.cmp_file = 'tests/cmp.osx'
         self.and_file = 'tests/and.osx'
+        self.orr_file = 'tests/orr.osx'
 
 
     def test_add(self):
@@ -109,6 +110,13 @@ class TestSystem(unittest.TestCase):
         self.system.call('run', self.and_file)
         self.assertEqual(self.system._CPU.registers[2], 1)
         self.assertEqual(self.system._CPU.registers[3], 0)
+
+    def test_orr(self):
+        self.system.call('load', self.orr_file)
+        self.system.call('run', self.orr_file)
+        self.assertEqual(self.system._CPU.registers[2], 1)
+        self.assertEqual(self.system._CPU.registers[3], 1)
+        self.assertEqual(self.system._CPU.registers[4], 0)
 
 
 
