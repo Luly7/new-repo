@@ -172,7 +172,6 @@ class System:
             self._memory[loader:loader+6] = instruction
             loader += 6
         pcb['code_end'] = loader - 1
-    
         
     def run_pcb(self, pcb):
         if pcb['file'] not in self.PCBs:
@@ -205,8 +204,6 @@ class System:
         self._CPU.run_program(pcb, self.verbose)
         self.loader = None
 
-
-
     def coredump(self):
         if self.verbose:
             print("Coredump:")
@@ -230,7 +227,6 @@ class System:
                 for error in self.errors:
                     f.write(str(error) + '\n')
             print("Errors dumped to errors.txt")    
-
 
     def print(self, txt):
         """ 
