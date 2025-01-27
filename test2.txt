@@ -1,15 +1,13 @@
-byteSize(57) PC(15) Loader(1)
-1:0: .WORD 100 (100)  ; osX Assembler in Verbose Mode
+byteSize(45) PC(15) Loader(20)
+1:0: HUNDRED .WORD 100 (100)  ; osX Assembler in Verbose Mode
 2:4: .BYTE 'a' (97)  ; osX Assembler in Verbose Mode
-3:5: ; osX Assembler in Verbose Mode
-4:5: .SPACE 10 (10)  ; osX Assembler in Verbose Mode
+3:5: .SPACE 10 (10)  ; osX Assembler in Verbose Mode
+4:15: ; osX Assembler in Verbose Mode
 5:15: ; osX Assembler in Verbose Mode
-6:15: ; osX Assembler in Verbose Mode
-7:15: MVI (22)  R1 (1)  20 (20)  ; osX Assembler in Verbose Mode
-8:21: MVI (22)  R2 (2)  10 (10)  ; osX Assembler in Verbose Mode
-9:27: ADD (16)  R0 (0)  R1 (1)  R2 (2)    ; osX Assembler in Verbose Mode
-10:33: SUB (17)  R0 (0)  R1 (1)  R2 (2)    ; osX Assembler in Verbose Mode
-11:39: MUL (18)  R0 (0)  R1 (1)  R2 (2)    ; osX Assembler in Verbose Mode
-12:45: DIV (19)  R0 (0)  R1 (1)  R2 (2)    ; osX Assembler in Verbose Mode
-13:51: SWI (20)  1 (1)   ; osX Assembler in Verbose Mode
-0 Labels Defined
+6:15: ADR (0)  R1 (1)  HUNDRED (0) ; osX Assembler in Verbose Mode
+7:21: MVI (22)  R2 (2)  100 (100)  ; osX Assembler in Verbose Mode
+8:27: MVI (22)  R3 (3)  100 (100)  ; osX Assembler in Verbose Mode
+9:33: ADD (16)  R0 (0)  R2 (2)  R3 (3)    ; osX Assembler in Verbose Mode
+10:39: SWI (20)  1 (1)   ; osX Assembler in Verbose Mode
+1 Labels Defined
+	HUNDRED  0

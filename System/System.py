@@ -16,7 +16,7 @@ class System:
         self._memory = Memory('100B')
         self._CPU = CPU(self._memory, self)
         self._clock = Clock()
-        self.mode = self._memory[0]
+        self.mode = USER_MODE 
         self.loader = None
         self.verbose = False
         self.programs = {}
@@ -32,8 +32,7 @@ class System:
     def switch_mode(self):
         new_mode = USER_MODE if self.mode == KERNEL_MODE else KERNEL_MODE
         if self.verbose: self.print(f"Switching user_mode from {self.mode} to {new_mode}")
-        self._memory[0] = new_mode
-        self.mode = self._memory[0]
+        self.mode = new_mode
 
     def call(self, cmd, *args):
             
@@ -130,6 +129,7 @@ class System:
     def _read_header(self, f):
         header = f.read(12)
         byte_size, pc, loader = unpack('III', header) 
+        pc += loader
         self.print(f" - Loading program with {byte_size} bytes, PC at {pc}, loader at {loader}")
         return byte_size, pc, loader
     
@@ -155,7 +155,7 @@ class System:
         if (pc != loader):
             self.print(f" - Loading data section into memory starting at {loader}")
             pcb['data_start'] = loader
-            while loader <= pc:
+            while loader < pc:
                 b = f.read(1)
                 byte = unpack('B', b)[0]
                 self._memory[loader] = byte
@@ -163,14 +163,14 @@ class System:
             pcb['data_end'] = loader - 1
         else:
             pcb['data_start'] = pcb['data_end'] = None
+            
 
         # Load code section
         pcb['code_start'] = loader
         while loader <= byte_size:
-            b = f.read(1)
-            byte = unpack('B', b)[0]
-            self._memory[loader] = byte
-            loader += 1
+            instruction = f.read(6)
+            self._memory[loader:loader+6] = instruction
+            loader += 6
         pcb['code_end'] = loader - 1
     
         

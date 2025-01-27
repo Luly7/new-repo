@@ -67,6 +67,7 @@ def main():
     else:
         filepath = 'test2.osx'
     pcb = load_into_system(filepath)
+    print(system._memory)
     run_pcb(pcb)
 
 if __name__ == "__main__":

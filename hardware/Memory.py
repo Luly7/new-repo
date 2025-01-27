@@ -4,11 +4,6 @@ class Memory:
         self.cols = 6
         self.rows = self.size // self.cols
         self._memory = bytearray(self.size)
-        self._memory[0] = 0 # first byte is reserved for system mode
-        # self.memory = [[0 for _ in range(self.cols)] for _ in range(self.rows)]
-        # self.memory[0][0] = 0 # first byte is reserved for system mode
-                                 # 0 = kernal mode
-                                 # 1 = user mode
 
     def calculate_size(self, size):
         size_int = int(size[:-1])
@@ -28,13 +23,15 @@ class Memory:
 
     def __str__(self):
         string = ''
-        string += f"0: {self._memory[0]:02X}\n"
-        l = 1
-        for i in range(1, self.rows):
+        l = 0
+        for i in range(self.rows):
+            if i % 5 == 0:
+                _ = ''
             string += f"{l}-{l+5}: "
             l += 6
             for j in range(self.cols):
-                string += f"{self._memory[i * self.cols + j]:02X} "
+                index = i * self.cols + j
+                string += f"{self._memory[index]:02X} "
             string += '\n'
         return string
     
