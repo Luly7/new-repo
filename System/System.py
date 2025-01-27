@@ -13,7 +13,7 @@ from constants import USER_MODE, KERNEL_MODE, SYSTEM_CODES, instructions
 
 class System:
     def __init__(self):
-        self._memory = Memory('100B')
+        self._memory = Memory('200B')
         self._CPU = CPU(self._memory, self)
         self._clock = Clock()
         self.mode = USER_MODE 

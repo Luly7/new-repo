@@ -1,0 +1,4 @@
+MVI R1 100 ;
+MVI R2 200 ;
+CMP R1 R2 ;
+SWI 1 ;

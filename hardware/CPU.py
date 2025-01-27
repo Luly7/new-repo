@@ -26,7 +26,23 @@ class CPU:
                 "MOV": self._mov,
                 "MVI": self._mvi,
                 "STR": self._str,
-                "ADR": self._adr
+                "ADR": self._adr,
+
+                # Branching
+                "B": self._b,
+                "BL": self._bl,
+                "BX": self._bx,
+                "BNE": self._bne,
+                "BGT": self._bgt,
+                "BLT": self._blt,
+                "BEQ": self._beq,
+
+                # Logical
+                "CMP": self._cmp,
+                "AND": self._and,
+                "ORR": self._orr,
+                "EOR": self._eor,
+
             }
         
     def system_call(self, code):
@@ -165,11 +181,127 @@ class CPU:
             STR R1 R2
             MEM[R2] <= R1
         """    
-        source_register, addess_register, _, _ = operands
+        source_register, addess_register, *rest = operands
         address = self.registers[addess_register]
+        value = self.registers[source_register]
+        self.memory[address:address+4] = struct.pack('<I', value)
+        if self.verbose:
+            print(f" - STR {source_register} <= MEM[{addess_register}]")
 
+    def _b(self, operands):
+        """
+            Branch to address
+        """
+        address_bytes = operands[0:4]
+        address = struct.unpack('<I', bytes(address_bytes))[0]
+        self.setPC(address)
+        if self.verbose:
+            print(f" - B {address}")
+    
+    def _bl(self, operands):
+        """
+            Branch to address and link
+        """
+        address_bytes = operands[0:4]
+        address = struct.unpack('<I', bytes(address_bytes))[0]
+        pc = self.registers[self.pc]
+        self.setPC(address)
+        self.registers[5] = pc
+        if self.verbose:
+            print(f" - BL {address}")
 
+    def _bx(self, operands):
+        """
+            Branch to address in register
+        """
+        register = operands[0]
+        address = self.registers[register]
+        self.setPC(address)
+        if self.verbose:
+            print(f" - BX {register}")
 
+    def _bne(self, operands):
+        """
+            Jump to label if Z register is not zero
+        """
+        address_bytes = operands[0:4]
+        address = struct.unpack('<I', bytes(address_bytes))[0]
+        is_not_zero = self.registers[self.z] != 0
+        if is_not_zero:
+            self.setPC(address)
+            if self.verbose:
+                print(f" - BNE {address}")
+
+    def _bgt(self, operands):
+        """
+            Jump to label if Z register is greater than zero
+        """
+        address_bytes = operands[0:4]
+        address = struct.unpack('<I', bytes(address_bytes))[0]
+        if self.registers[self.z] > 0:
+            self.setPC(address)
+            if self.verbose:
+                print(f" - BGT {address}")
+
+    def _blt(self, operands):
+        """
+            Jump to label if Z register is less than zero
+        """
+        address_bytes = operands[0:4]
+        address = struct.unpack('<I', bytes(address_bytes))[0]
+        if self.registers[self.z] < 0:
+            self.setPC(address)
+            if self.verbose:
+                print(f" - BLT {address}")
+
+    def _beq(self, operands):
+        """
+            Jump to label if Z register is equal to zero
+        """
+        address_bytes = operands[0:4]
+        address = struct.unpack('<I', bytes(address_bytes))[0]
+        if self.registers[self.z] == 0:
+            self.setPC(address)
+            if self.verbose:
+                print(f" - BEQ {address}")
+
+    def _cmp(self, operands):
+        """
+            Compare two registers
+        """
+        first_register, second_register, *_ = operands
+        self.registers[self.z] = self.registers[first_register] - self.registers[second_register]
+
+    def _and(self, operands):
+        """
+            AND R1 R2
+            RZ = R1 & R2
+        """
+        first_register, second_register, third_register, _, _ = operands
+        self.registers[first_register] = self.registers[second_register] & self.registers[third_register]
+        if self.verbose:
+            print(f" - AND {self.registers[second_register] & self.registers[third_register]} ({third_register}) = {self.registers[second_register]} ({second_register}) & {self.registers[third_register]} ({third_register})")
+
+    def _orr(self, operands):
+        """
+            ORR R1 R2
+            RZ = R1 | R2
+        """
+        first_register, second_register, *rest = operands
+        self.registers[self.z] = self.registers[first_register] | self.registers[second_register]
+        if self.verbose:
+            print(f" - ORR {self.registers[self.z]} = {self.registers[first_register]} ({second_register}) | {self.registers[second_register]} ({second_register})")
+
+    def _eor(self, operands):
+        """
+            EOR R1 R2
+            RZ = R1 ^ R2
+        """
+        first_register, second_register, *rest = operands
+        self.registers[self.z] = self.registers[first_register] ^ self.registers[second_register]
+        if self.verbose:
+            print(f" - EOR {self.registers[self.z]} = {self.registers[first_register]} ({second_register}) ^ {self.registers[second_register]} ({second_register})")
+            
     def _decode(self, instruction):
         """
             Decode instruction into opcode and operands

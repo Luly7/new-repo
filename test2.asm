@@ -1,5 +1,14 @@
-START:  MVI R2 100 ;
-        MVI R3 100 ;
-        ADD R1 R2 R3 ;
-        MOV R0 R1 ;
-        
+START     MVI R1 100 ;
+          MVI R2 200 ;
+          CMP R1 R2 ;
+          BEQ EQUAL ;
+          BGT GREATER ;
+          BLT LESS ;
+          MVI R0 99 ;
+          SWI 1 ;
+EQUAL     MVI R0 0 ;
+          SWI 1 ;
+GREATER   MVI R0 1 ;
+          SWI 1 ;
+LESS      MVI R0 -1 ;
+          SWI 1 ;
