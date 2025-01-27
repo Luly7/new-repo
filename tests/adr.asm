@@ -1,0 +1,4 @@
+HUNDRED .WORD \100 ;
+
+START:  ADR R0 HUNDRED ;
+        SWI 1 ;

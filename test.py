@@ -1,74 +1,69 @@
+import unittest
 import sys
-import struct
-from hardware.Memory import Memory
-from System.PCB import PCB
 from System.System import System
 
+class TestSystem(unittest.TestCase):
+    def setUp(self):
+        self.system = System()
+        self.add_file = 'tests/add.osx'
+        self.sub_file = 'tests/sub.osx'
+        self.mul_file = 'tests/mul.osx'
+        self.div_file = 'tests/div.osx'
+        self.mov_file = 'tests/mov.osx'
+        self.adr_file = 'tests/adr.osx'
 
+    # def test_add(self):
+    #     self.system.call('load', self.add_file)
+    #     self.system.call('run', self.add_file)
+    #     self.assertEqual(self.system._CPU.registers[0], 300)
 
-def load_osx(filepath):
-    memory = Memory('100B')
-    pcb = PCB(1, 0, [0] * 8, 'NEW')
+    # def test_sub(self):
+    #     self.system.call('load', self.sub_file)
+    #     self.system.call('run', self.sub_file)
+    #     self.assertEqual(self.system._CPU.registers[1], 100)
 
+    # def test_mul(self):
+    #     self.system.call('load', self.mul_file)
+    #     self.system.call('run', self.mul_file)
+    #     self.assertEqual(self.system._CPU.registers[0], 400)
 
-    running = True
-    if running:
-        with open(filepath, 'rb') as f:
+    # def test_div(self):
+    #     self.system.call('load', self.div_file)
+    #     self.system.call('run', self.div_file)
+    #     self.assertEqual(self.system._CPU.registers[0], 2)
+    
+    # def test_mov(self):
+    #     self.system.call('load', self.mov_file)
+    #     self.system.call('run', self.mov_file)
+    #     self.assertEqual(self.system._CPU.registers[0], 200)
 
-            header = f.read(12)
-            byteSize, pc, loader = struct.unpack('III', header)
+    def test_adr(self):
+        self.system.call('load', self.adr_file)
+        self.system.call('run', self.adr_file)
+        self.assertEqual(self.system._CPU.registers[0], 0)
 
-
-            # Load data section
-            if (pc != loader):
-                pcb.data_start = loader
-                while loader <= pc:
-                    b = f.read(1)
-                    byte = struct.unpack('B', b)[0]
-                    memory[loader] = byte
-                    loader += 1
-                pcb.data_end = loader - 1
-            else:
-                pcb.data_start = pcb.data_end = None
-
-
-            # Load code section
-            pcb.code_start = loader
-            while loader <= byteSize:
-                b = f.read(1)
-                byte = struct.unpack('B', b)[0]
-                memory[loader] = byte
-                loader += 1
-            pcb.code_end = loader - 1
-            
-            print()
-            print(memory)
-            print(memory[pcb.code_start], memory[pcb.code_end+1])
-            if pcb.data_start is not None and pcb.data_end is not None:
-                data_section = memory[pcb.data_start:pcb.data_end+1]
-                data_integers = struct.unpack(f'{len(data_section)}B', bytes(data_section))
-                print(data_integers)
-            code_section = memory[pcb.code_start:pcb.code_end+1]
-            code_integers = struct.unpack(f'{len(code_section)}B', bytes(code_section))
-            print(code_integers)
         
-system = System()
-def load_into_system(filepath):
-    global system
+def load_into_system(system, filepath):
     return system.load_file(filepath)
 
-def run_pcb(pcb):
-    global system
+def run_pcb(system, pcb):
     system.run_pcb(pcb)
 
+def get_registers(system):
+    return system._CPU.registers
+
 def main():
+    system = System()
     if (len(sys.argv) == 2):
         filepath = sys.argv[1]
     else:
-        filepath = 'test2.osx'
-    pcb = load_into_system(filepath)
-    print(system._memory)
-    run_pcb(pcb)
+        filepath = 'tests/mov.osx'
+    pcb = load_into_system(system, filepath)
+    run_pcb(system, pcb)
+    
+
+    assert get_registers(system)[0] == 200
 
 if __name__ == "__main__":
-    main()
+    unittest.main()
+    # main()
