@@ -28,6 +28,7 @@ class CPU:
                 "STR": self._str,
                 "ADR": self._adr,
                 "STRB": self._strb,
+                "LDR": self._ldr,
 
                 # Branching
                 "B": self._b,
@@ -202,6 +203,19 @@ class CPU:
         self.memory[address] = value & 0xFF
         if self.verbose:
             print(f" - STRB {source_register} <= MEM[{addess_register}]")
+
+    def _ldr(self, operands):
+        """
+            Load value from memory location pointed to by one register into another register
+            LDR R1 R2
+            R1 <= MEM[R2]
+        """    
+        source_register, addess_register, *rest = operands
+        address = self.registers[addess_register]
+        value = struct.unpack('<I', self.memory[address:address+4])[0]
+        self.registers[source_register] = value
+        if self.verbose:
+            print(f" - LDR {source_register} <= MEM[{addess_register}]")
 
     def _b(self, operands):
         """

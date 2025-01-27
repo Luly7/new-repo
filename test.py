@@ -1,5 +1,3 @@
-
-import subprocess
 import unittest
 import sys
 from System.System import System
@@ -15,6 +13,7 @@ class TestSystem(unittest.TestCase):
         self.adr_file = 'tests/adr.osx'
         self.str_file = 'tests/str.osx'
         self.strb_file = 'tests/strb.osx'
+        self.ldr_file = 'tests/ldr.osx'
         self.b_file   = 'tests/b.osx'
         self.bl_file  = 'tests/bl.osx'
         self.bx_file  = 'tests/bx.osx'
@@ -63,6 +62,11 @@ class TestSystem(unittest.TestCase):
         self.system.call('run', self.strb_file)
         self.assertEqual(self.system._memory[2], 97)
 
+    def test_ldr(self):
+        self.system.call('load', self.ldr_file)
+        self.system.call('run', self.ldr_file)
+        self.assertEqual(self.system._CPU.registers[0], 300)
+
     def test_b(self):
         self.system.call('load', self.b_file)
         self.system.call('run', self.b_file)
@@ -92,30 +96,8 @@ class TestSystem(unittest.TestCase):
         self.system.call('load', self.cmp_file)
         self.system.call('run', self.cmp_file)
         self.assertLess(self.system._CPU.registers[9], 0)
-        
-def load_into_system(system, filepath):
-    return system.load_file(filepath)
 
-def run_pcb(system, pcb):
-    system.run_pcb(pcb)
-
-def get_registers(system):
-    return system._CPU.registers
-
-def main():
-    system = System()
-    if (len(sys.argv) == 2):
-        filepath = sys.argv[1]
-    else:
-        filepath = 'test.osx'
-
-    
-    pcb = load_into_system(system, filepath)
-    run_pcb(system, pcb)
-    print(system._CPU.registers)
-    
 
 
 if __name__ == "__main__":
     unittest.main()
-    # main()
