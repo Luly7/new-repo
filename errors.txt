@@ -1,2 +1,0 @@
-{'program': None, 'code': 102, 'message': 'Memory allocation error'}
-{'program': None, 'code': 101, 'message': 'No program loaded'}

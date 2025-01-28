@@ -1,14 +1,7 @@
-START     MVI R1 100 ;
-          MVI R2 200 ;
-          CMP R1 R2 ;
-          BEQ EQUAL ;
-          BGT GREATER ;
-          BLT LESS ;
-          MVI R0 99 ;
-          SWI 1 ;
-EQUAL     MVI R0 0 ;
-          SWI 1 ;
-GREATER   MVI R0 1 ;
-          SWI 1 ;
-LESS      MVI R0 -1 ;
-          SWI 1 ;
+ONE .WORD 1 ;
+A   .BYTE 'a' ;
+
+MVI R1 3 ;
+MVI R2 2 ;
+SUB R0 R1 R2 ;
+SWI 1 ;

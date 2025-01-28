@@ -56,16 +56,25 @@ class CPU:
         self.setPC(pcb['start_line'])
     
     def run_program(self, pcb, verbose=False):
+        start_time = self.system.clock.time
         if verbose: self.verbose = True
+        self.registers = pcb.registers
         code_start = pcb['code_start']
         code_end = pcb['code_end']
         self.registers[self.pc] = code_start
+        pcb.running()
         running = True
         while running and self.registers[self.pc] < code_end:
             instruction = self._fetch()
             opcode, operands = self._decode(instruction)
 
             if opcode == "SWI":
+                if operands[0] == 1:
+                    pcb.registers = self.registers.copy()
+                    pcb.terminated()
+                    self.system_call(0)
+                    print("End of program")
+                    break
                 self._swi(operands)
                 self.verbose = False
                 break
@@ -74,6 +83,8 @@ class CPU:
                 self.ops[opcode](operands)
                 if self.verbose:
                     print(self.registers)
+                self.system.clock.increment()
+                pcb.execution_time += 1
             else:
                 self.system_call(103)
                 print(f"Unknown opcode: {opcode}")
@@ -313,7 +324,10 @@ class CPU:
             Compare two registers
         """
         first_register, second_register, *_ = operands
-        self.registers[self.z] = self.registers[first_register] - self.registers[second_register]
+        val1 = self.registers[first_register]
+        val2 = self.registers[second_register]
+        val = val1 - val2
+        self.registers[self.z] = val
 
     def _and(self, operands):
         """
