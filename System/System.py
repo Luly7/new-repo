@@ -6,24 +6,15 @@ try:
     from hardware.Memory import Memory
     from hardware.CPU import CPU
     from hardware.Clock import Clock
+    from .PCB import PCB
 except ImportError:
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from hardware.Memory import Memory
     from hardware.CPU import CPU
     from hardware.Clock import Clock
-
-try:
-    from .PCB import PCB
-    from constants import USER_MODE, KERNEL_MODE, SYSTEM_CODES, instructions
-except ImportError:
     from PCB import PCB
-    from constants import USER_MODE, KERNEL_MODE, SYSTEM_CODES, instructions
 
-
-
-
-# PCB = Process Control Block
-# stores meta data for a process
+from constants import USER_MODE, KERNEL_MODE, SYSTEM_CODES, instructions
 
 class System:
     def __init__(self):
@@ -129,14 +120,12 @@ class System:
                 byte_size, pc, loader = self._read_header(f)
                 
                 if not self._is_valid_loader(loader, byte_size):
-                    self.system_codes(102)
                     return None
                 
                 pcb = self.createPCB(pc, filepath)
                 self._load_instructions(f, pc, loader, byte_size, pcb)
                 # pcb['arrival_time'] = arrival_time
 
-                self.print("Program loaded at memory location {}".format(pcb['loader']))
                 self.system_code(1)
                 return pcb
 
@@ -229,6 +218,7 @@ class System:
 
         self.CPU.run_program(pcb, self.verbose)
         self.loader = None
+        self.release_resources(pcb)
 
     def coredump(self):
         if self.verbose:
