@@ -1,4 +1,4 @@
-# OS Implementation by Jason Petersen & Lourdis
+# OS Implementation by Jason Petersen & Lourdes Castleton
 
 CS6510 - Spring 2025
 
