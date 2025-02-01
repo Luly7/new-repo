@@ -91,19 +91,21 @@ class System:
         self.job_queue.sort(key=lambda x: x.arrival_time)
 
         while self.job_queue or self.ready_queue:
+            # Move jobs from job queue to ready queue
             while self.job_queue and self.clock.time >= self.job_queue[0].arrival_time:
                 job = self.job_queue.pop(0)
                 self.ready_queue.append(job)
-                job.ready()
+                job.state = "READY"
                 self.print(f"Scheduling job: {job}")
 
-
+            # Run the next job in the ready queue
             if self.ready_queue:
                 job = self.ready_queue.pop(0)
                 job.start_time = self.clock.time
                 job.waiting_time = job.start_time - job.arrival_time
                 self.run_pcb(job)
             else:
+                # If no job is ready increment clock
                 self.clock += 1
 
     def load_file(self, filepath, *args):
@@ -186,6 +188,8 @@ class System:
         pcb['code_end'] = loader + byte_size - 1
         
     def run_pcb(self, pcb):
+        pcb.state = "RUNNING"
+        self.print(f"Running program: {pcb}")
         self.CPU.run_program(pcb, self.verbose)
         if pcb['state'] == 'TERMINATED':
             self.release_resources(pcb)
