@@ -119,7 +119,7 @@ class System:
                 # Unpack header, which consists of 3 integers (12 bytes)
                 byte_size, pc, loader = self._read_header(f)
                 
-                if not self._is_valid_loader(loader, byte_size):
+                if not self._is_valid_loader(loader, byte_size, filepath):
                     return None
                 
                 pcb = self.createPCB(pc, filepath)
@@ -146,9 +146,9 @@ class System:
         self.PCBs[filepath] = pcb
         return pcb
         
-    def _handle_error(self, code, message):
+    def _handle_error(self, code, message, program=None):
         print(message)
-        self.system_code(code)
+        self.system_code(code, program)
         return None
     
     def _read_header(self, f):
@@ -158,17 +158,17 @@ class System:
         self.print(f" - Loading program with {byte_size} bytes, PC at {pc}, loader at {loader}")
         return byte_size, pc, loader
     
-    def _is_valid_loader(self, loader, byte_size):
+    def _is_valid_loader(self, loader, byte_size, filepath):
         if loader > self.memory.size:
-            self._handle_error(110, f"Loader address {loader} is out of bounds.")
+            self._handle_error(110, f"Loader address {loader} is out of bounds.", filepath)
             return False
         
         if loader + byte_size > self.memory.size:
-            self._handle_error(102, f"Not enough memory to store program at location {loader}.\nProgram requires {byte_size} bytes.\nMemory has {self.memory.size - loader} bytes available.")
+            self._handle_error(102, f"Not enough memory to store program at location {loader}.\nProgram requires {byte_size} bytes.\nMemory has {self.memory.size - loader} bytes available.", filepath)
             return False
         
         if any(self.memory[loader:loader+byte_size]):
-            self._handle_error(102, f"Memory location {loader} already contains a program.")
+            self._handle_error(102, f"Memory location {loader} already contains a program.", filepath)
             return False
         
         return True
@@ -252,23 +252,23 @@ class System:
         if (self.verbose):
             print(txt)
 
-    def log_error(self, code):
+    def log_error(self, code, program=None):
         if code not in self.system_codes:
             print(self.system_codes[100])
         
         if code >= 100:
             self.errors.append({
-                'program': None,
+                'program': program,
                 'code': code, 
                 'message': self.system_codes[code]},
                 )
         print(self.system_codes[code])
 
-    def system_code(self, code):
+    def system_code(self, code, program=None):
         if code == 0 or code == 1:
             return None
         
-        self.log_error(code)
+        self.log_error(code, program)
 
     def fork(self, parent_pcb):
         new_pid = len(self.PCBs) + 1
