@@ -1,8 +1,10 @@
 RESULT  .WORD 0 ;
 
+FOO     .WORD 300 ;
+
 START   MVI R0 5 ; number to calculate factorial
         MVI R1 1 ; result
-        MVI R2 1 ; counter
+        MVI R2 0 ; counter
         ADR R3 RESULT ; address to store result
         MVI R4 1 ; increment
 
