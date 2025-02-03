@@ -7,12 +7,14 @@ try:
     from hardware.CPU import CPU
     from hardware.Clock import Clock
     from .PCB import PCB
+    from .Scheduler import Scheduler
 except ImportError:
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from hardware.Memory import Memory
     from hardware.CPU import CPU
     from hardware.Clock import Clock
     from PCB import PCB
+    from Scheduler import Scheduler
 
 from constants import USER_MODE, KERNEL_MODE, SYSTEM_CODES, instructions
 
@@ -21,6 +23,7 @@ class System:
         self.memory = Memory('200B')
         self.CPU = CPU(self.memory, self)
         self.clock = Clock()
+        self.scheduler = Scheduler()
         self.mode = USER_MODE 
         self.loader = None
         self.verbose = False
@@ -28,6 +31,7 @@ class System:
         self.errors = []
         self.system_codes = SYSTEM_CODES
         # self.PCBs = {}
+        self.pid = 0
 
         # Process management queues
         self.ready_queue = []
@@ -92,7 +96,7 @@ class System:
             self.print_PCBs()
 
     def print_PCBs(self):
-        for pcb in self.PCBs.values():
+        for pcb in self.ready_queue + self.job_queue + self.io_queue + self.terminated_queue:
             print(f"PCB: {pcb['file']}")
             print(f"  Arrival time: {pcb['arrival_time']}")
             print(f"  Start time: {pcb['start_time']}")
@@ -130,10 +134,10 @@ class System:
     def load_file(self, filepath, *args):
         """ Load file into memory """
         if not filepath:
-            return self._handle_error(103, "Please specify the file path.")
+            return self.system_code(103, "Please specify the file path.")
         
         if len(args) > 0:
-            return self._handle_error(103, "load command only takes one argument, the file path.")
+            return self.system_code(103, "load command only takes one argument, the file path.")
                 
         try:
             with open(filepath, 'rb') as f:
@@ -165,15 +169,11 @@ class System:
             return None
         
     def createPCB(self, pc, filepath):
-        pid = len(self.job_queue) + 1
+        pid = self.pid + 1
+        self.pid += 1
         pcb = PCB(pid, pc)
         pcb['file'] = filepath 
         return pcb
-        
-    def _handle_error(self, code, message, program=None):
-        print(message)
-        self.system_code(code, program)
-        return None
     
     def _read_header(self, f):
         header = f.read(12)
@@ -184,11 +184,11 @@ class System:
     
     def _is_valid_loader(self, loader, byte_size, filepath):
         if loader > self.memory.size:
-            self._handle_error(110, f"Loader address {loader} is out of bounds.", filepath)
+            self.system_code(110, f"Loader address {loader} is out of bounds.", filepath)
             return False
         
         if loader + byte_size > self.memory.size:
-            self._handle_error(102, f"Not enough memory to store program at location {loader}.\nProgram requires {byte_size} bytes.\nMemory has {self.memory.size - loader} bytes available.", filepath)
+            self.system_code(102, f"Not enough memory to store program at location {loader}.\nProgram requires {byte_size} bytes.\nMemory has {self.memory.size - loader} bytes available.", filepath)
             return False
                 
         return True
@@ -208,14 +208,28 @@ class System:
             f.seek(12) # Skip header
             self.memory[pcb['loader'] : pcb['loader'] + pcb['byte_size']] = f.read(pcb['byte_size'])
 
+        if (self.verbose):
+            print(self.memory)
 
     def run_pcb(self, pcb):
         pcb.running()
         self.print(f"Running program: {pcb}")
-        self.CPU.run_program(pcb, self.verbose)
-        if pcb['state'] == 'TERMINATED':
-            self.release_resources(pcb)
-        self.terminated_queue.append(pcb)
+
+        while pcb['state'] != 'TERMINATED':
+            self.CPU.run_program(pcb, self.verbose)
+            if pcb['state'] == 'TERMINATED' and len(pcb.get_children()) == 0:
+                self.release_resources(pcb)
+            elif pcb['state'] == 'WAITING':
+                self.io_queue.append(pcb)
+                break
+            elif pcb['state'] == 'READY':
+                self.ready_queue.append(pcb)
+                break
+        
+        self.schedule_jobs()
+
+        if pcb['state'] == 'TERMINATED' and pcb.has_children():
+            self.wait(pcb)
 
     def release_resources(self, pcb):
         loader = pcb['loader']
@@ -291,41 +305,39 @@ class System:
                 )
         print(self.system_codes[code])
 
-    def system_code(self, code, program=None):
+    def system_code(self, code, message = None, program=None):
         if code == 0 or code == 1:
+            if (message): print(message)
             return None
         
         self.log_error(code, program)
 
     def fork(self, parent_pcb):
-        new_pid = len(self.PCBs) + 1
+        new_pid = self.pid + 1
+        self.pid += 1
 
         # Copy parent PCB
-        child_pcb = PCB(new_pid, parent_pcb['pc'], parent_pcb['registers'].copy(), state="READY")
-        child_pcb['file'] = parent_pcb['file']
-        child_pcb['loader'] = parent_pcb['loader']
-        child_pcb['data_start'] = parent_pcb['data_start']
-        child_pcb['data_end'] = parent_pcb['data_end']
-        child_pcb['code_start'] = parent_pcb['code_start']
-        child_pcb['code_end'] = parent_pcb['code_end']
-        child_pcb['arrival_time'] = self.clock.time
-        child_pcb['pc'] = parent_pcb['pc']
-        
+        child_pcb = parent_pcb.make_child(new_pid, parent_pcb.get_pc())
 
-        self.PCBs[child_pcb['file'] + f"_child_{new_pid}"] = child_pcb
+        child_pcb['arrival_time'] = self.clock.time
+        child_pcb.ready()
+
+        parent_pcb.registers[0] = new_pid
+        child_pcb.registers[0] = 0
+
+        self.ready_queue.append(child_pcb)
 
         self.print(f"Forked child process: {child_pcb}")
 
         return child_pcb
 
-    def wait(self, pcb):
-        pass
-
+def wait(self, parent_pcb):
+        for child_pcb in parent_pcb.get_children():
+            while child_pcb['state'] != 'TERMINATED':
+                self.run_pcb(child_pcb)
+        self.print(f"Parent process {parent_pcb} has waited for all child processes to terminate")
 
 if __name__ == '__main__':
     system = System()
     system.verbose = True
     system.call('execute', 'test.osx', 0)
-    # print(system.memory)
-    # system.release_resources(pcb)
-    # print(system.memory)
