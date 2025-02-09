@@ -1,5 +1,8 @@
-NUM1    .SPACE 1 ;
-NUM2    .SPACE 1 ;
+NUM1    .SPACE 10 ;
+NUM2    .SPACE 10 ;
+NUM3    .WORD 100 ;
+CHARa   .BYTE 'a' ;
+NUM4    .BYTE \11 ;
 
 START   MVI R1 1 ;
         MVI R2 1 ;
