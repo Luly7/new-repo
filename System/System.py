@@ -8,6 +8,7 @@ try:
     from hardware.Clock import Clock
     from .PCB import PCB
     from .Scheduler import Scheduler
+    from .MemoryManager import MemoryManager
 except ImportError:
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from hardware.Memory import Memory
@@ -15,15 +16,17 @@ except ImportError:
     from hardware.Clock import Clock
     from PCB import PCB
     from Scheduler import Scheduler
+    from MemoryManager import MemoryManager
 
 from constants import USER_MODE, KERNEL_MODE, SYSTEM_CODES, instructions
 
 class System:
     def __init__(self):
-        self.memory = Memory('200B')
-        self.CPU = CPU(self.memory, self)
         self.clock = Clock()
-        self.scheduler = Scheduler()
+        self.scheduler = Scheduler(self)
+        self.memoryManager = MemoryManager(self, '1K')
+        self.memory = self.memoryManager.memory
+        self.CPU = CPU(self.memory, self)
         self.mode = USER_MODE 
         self.loader = None
         self.verbose = False
@@ -40,7 +43,7 @@ class System:
         self.terminated_queue = []
 
         self.commands = {
-            'load': self.load_file,
+            'load': self.memoryManager.load_file,
             'coredump': self.coredump,
             'errordump': self.errordump,
             "run": self.run_program, 
@@ -85,13 +88,13 @@ class System:
             filepath = args[i]
             arrival_time = int(args[i+1])
 
-            pcb = self.load_file(filepath)
+            pcb = self.memoryManager.load_file(filepath)
             if pcb:
                 pcb.set_arrival_time(arrival_time)
                 self.job_queue.append(pcb)
 
 
-        self.schedule_jobs()
+        self.scheduler.schedule_jobs()
         if (self.verbose):
             self.print_PCBs()
 
@@ -108,66 +111,6 @@ class System:
             print(f"  Memory: {pcb['loader']} - {pcb['loader'] + pcb['byte_size']}")
             print()
 
-    def schedule_jobs(self):
-        self.job_queue.sort(key=lambda x: x.arrival_time)
-
-        while self.job_queue or self.ready_queue:
-            # Move jobs from job queue to ready queue
-            while self.job_queue and self.clock.time >= self.job_queue[0].arrival_time:
-                job = self.job_queue.pop(0)
-                self.ready_queue.append(job)
-                job.ready()
-                self.print('')
-                self.print(f"Scheduling job: {job}")
-
-            # Run the next job in the ready queue
-            if self.ready_queue:
-                job = self.ready_queue.pop(0)
-                job['start_time'] = self.clock.time
-                job['waiting_time'] = job['start_time'] - job['arrival_time']
-                self._load_to_memory(job)
-                self.run_pcb(job)
-            else:
-                # If no job is ready increment clock
-                self.clock += 1
-
-    def load_file(self, filepath, *args):
-        """ Load file into memory """
-        if not filepath:
-            return self.system_code(103, "Please specify the file path.")
-        
-        if len(args) > 0:
-            return self.system_code(103, "load command only takes one argument, the file path.")
-                
-        try:
-            with open(filepath, 'rb') as f:
-                # Unpack header, which consists of 3 integers (12 bytes)
-                byte_size, pc, loader = self._read_header(f)
-                
-                if not self._is_valid_loader(loader, byte_size, filepath):
-                    return None
-                
-                pcb = self.createPCB(pc, filepath)
-                pcb['byte_size'] = byte_size
-                pcb['loader'] = loader
-                pcb['code_start'] = pc
-                pcb['code_end'] = loader + byte_size - 1
-                pcb['data_start'] = loader
-                pcb['data_end'] = pc - 1
-
-                self.system_code(1)
-                return pcb
-
-        except FileNotFoundError:
-            print("File not found")
-            self.system_code(109)
-            return None
-        except Exception as e:
-            self.system_code(100)
-            print("An error occurred while loading the file.")
-            print(e)
-            return None
-        
     def createPCB(self, pc, filepath):
         pid = self.pid + 1
         self.pid += 1
@@ -175,41 +118,6 @@ class System:
         pcb['file'] = filepath 
         return pcb
     
-    def _read_header(self, f):
-        header = f.read(12)
-        byte_size, pc, loader = unpack('III', header) 
-        pc += loader
-        self.print(f" - Loading program with {byte_size} bytes, PC at {pc}, loader at {loader}")
-        return byte_size, pc, loader
-    
-    def _is_valid_loader(self, loader, byte_size, filepath):
-        if loader > self.memory.size:
-            self.system_code(110, f"Loader address {loader} is out of bounds.", filepath)
-            return False
-        
-        if loader + byte_size > self.memory.size:
-            self.system_code(102, f"Not enough memory to store program at location {loader}.\nProgram requires {byte_size} bytes.\nMemory has {self.memory.size - loader} bytes available.", filepath)
-            return False
-                
-        return True
-    
-    def _load_to_memory(self, pcb):
-
-        # Check if another pcb is already loaded at the loader address and not terminated
-        for other_pcb in self.ready_queue:
-            if ((other_pcb != pcb and other_pcb['file'] != pcb['file']) and # Make sure it's not the same program
-               (other_pcb['state'] not in ['TERMINATED', 'NEW'])): # Make sure it's not terminated or new
-                if ((pcb['loader'] < other_pcb['code_end'] and pcb['loader'] > other_pcb['code_start']) or 
-                   (pcb['code_end'] > other_pcb['loader'] and pcb['code_end'] < other_pcb['code_end'])):
-                    self.system_code(102, pcb['file'])
-                    return None
-    
-        with open(pcb['file'], 'rb') as f:
-            f.seek(12) # Skip header
-            self.memory[pcb['loader'] : pcb['loader'] + pcb['byte_size']] = f.read(pcb['byte_size'])
-
-        if (self.verbose):
-            print(self.memory)
 
     def run_pcb(self, pcb):
         pcb.running()
@@ -218,7 +126,7 @@ class System:
         while pcb['state'] != 'TERMINATED':
             self.CPU.run_program(pcb, self.verbose)
             if pcb['state'] == 'TERMINATED' and len(pcb.get_children()) == 0:
-                self.release_resources(pcb)
+                self.memoryManager.release_resources(pcb)
             elif pcb['state'] == 'WAITING':
                 self.io_queue.append(pcb)
                 break
@@ -226,16 +134,10 @@ class System:
                 self.ready_queue.append(pcb)
                 break
         
-        self.schedule_jobs()
+        self.scheduler.schedule_jobs()
 
         if pcb['state'] == 'TERMINATED' and pcb.has_children():
             self.wait(pcb)
-
-    def release_resources(self, pcb):
-        loader = pcb['loader']
-        code_end = pcb['code_end']
-        self.memory[loader:code_end+1] = [0] * (code_end - loader + 1)
-        self.print(f"Released resources for {pcb}")
 
     def run_program(self, *args):
         if len(self.PCBs) == 0:
@@ -257,11 +159,9 @@ class System:
         
         pcb = self.PCBs[program]
 
-        self._load_to_memory(pcb)
+        self.memoryManager._load_to_memory(pcb)
 
         self.CPU.run_program(pcb, self.verbose)
-        # self.loader = None
-        # self.release_resources(pcb)
 
     def coredump(self):
         if self.verbose:
@@ -340,4 +240,4 @@ def wait(self, parent_pcb):
 if __name__ == '__main__':
     system = System()
     system.verbose = True
-    system.call('execute', 'test.osx', 0)
+    system.call('execute', 'programs/add.osx', 0)
