@@ -51,3 +51,7 @@ To switch back to shell mode type `shell` into the bash command line. In shell m
 `shell > (bash > ) exit`
 
 The program will continue to run until the user runs the command `exit`. This will close the program.
+
+# Run tests
+
+Run the file tests\run_tests.py. This will run multiple tests to ensure everything is working as expected. It includes unit tests as well as end to end tests.
