@@ -33,7 +33,6 @@ class System:
         self.programs = {}
         self.errors = []
         self.system_codes = SYSTEM_CODES
-        # self.PCBs = {}
         self.pid = 0
 
         # Process management queues
@@ -43,7 +42,7 @@ class System:
         self.terminated_queue = []
 
         self.commands = {
-            'load': self.memoryManager.load_file,
+            'load': self.handle_load,
             'coredump': self.coredump,
             'errordump': self.errordump,
             "run": self.run_program, 
@@ -127,6 +126,7 @@ class System:
             self.CPU.run_program(pcb, self.verbose)
             if pcb['state'] == 'TERMINATED' and len(pcb.get_children()) == 0:
                 self.memoryManager.release_resources(pcb)
+                self.terminated_queue.append(pcb)
             elif pcb['state'] == 'WAITING':
                 self.io_queue.append(pcb)
                 break
@@ -139,8 +139,16 @@ class System:
         if pcb['state'] == 'TERMINATED' and pcb.has_children():
             self.wait(pcb)
 
+    def handle_load(self, filepath):
+        pcb = self.memoryManager.load_file(filepath)
+        if pcb:
+            self.job_queue.append(pcb)
+            self.memoryManager._load_to_memory(pcb)
+            self.print(f"Loaded program: {pcb}")
+        
+
     def run_program(self, *args):
-        if len(self.PCBs) == 0:
+        if len(self.job_queue) == 0 and len(self.ready_queue) == 0:
             self.system_code(101)
             print("No program loaded.")
             return None
@@ -152,16 +160,15 @@ class System:
         
         program = args[0]
         
-        if program not in self.PCBs:
-            self.system_code(101)
-            print(f"Program {program} not found.")
-            return None
-        
-        pcb = self.PCBs[program]
-
-        self.memoryManager._load_to_memory(pcb)
+        pcb = None
+        for job in self.job_queue + self.ready_queue:
+            if job['file'] == program:
+                pcb = job
+                break
+        self.print(f"Running program: {pcb}")
 
         self.CPU.run_program(pcb, self.verbose)
+        return pcb.registers[0]
 
     def coredump(self):
         if self.verbose:
@@ -240,4 +247,18 @@ def wait(self, parent_pcb):
 if __name__ == '__main__':
     system = System()
     system.verbose = True
-    system.call('execute', 'programs/add.osx', 0)
+    # system.call('execute', 'programs/add.osx', 0)
+    system.handle_load('programs/add.osx')
+    result = system.run_program('programs/add.osx')
+    assert result == 2
+
+
+
+
+# SWI to simulate user input, add a random amount of time to the clock, or add a certain amount for each SWI and add multiple SWI
+# fork() parent should go to waiting state until all children are terminated
+# Given overlapping programs they should all run
+
+# draw gantt chart, generate a string 0 = waiting 1 = running
+# be able to track throughput, waiting time, turnaround time, response time
+
