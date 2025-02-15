@@ -61,6 +61,7 @@ class System:
     def call(self, cmd, *args):
         if cmd in self.commands:
             try:
+
                 # Switch to kernel mode to execute the command
                 self.switch_mode()
                 print()

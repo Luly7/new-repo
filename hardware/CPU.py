@@ -77,6 +77,7 @@ class CPU:
                     self.system_call(0)
                     if self.verbose:
                         print("End of program")
+                    self.verbose = False
                     break
                 elif swi == 2:
                     print(f'Result of operations: {self.registers[0]}')
