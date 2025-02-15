@@ -41,11 +41,14 @@ class ShellMode(Modes):
         try:
             args.insert(0, 'osx')
             result = subprocess.run(args, text=True, capture_output=True)
+            print(result.stdout)
             if result.returncode != 0:
                 pass
         except subprocess.CalledProcessError as e:
             print(f"Error: {e}")
             print(e.stderr)
+        except Exception as e:
+            print(f"Error: {e}")
 
 if __name__ == '__main__':
     shell = ShellMode()

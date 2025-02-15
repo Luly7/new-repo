@@ -60,7 +60,7 @@ class System:
         if cmd in self.commands:
             try:
                 self.switch_mode() # switch to kernel mode to execute the command
-                print()
+                self.print('')
                 self.print(f"Executing command: {cmd}")
                 self.commands[cmd](*args) # look up the command in the dictionary and execute it
                 self.switch_mode() # switch back to user mode after executing the command
