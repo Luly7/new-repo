@@ -68,7 +68,8 @@ class System:
                 # Look up the command in the dictionary and execute it
                 self.commands[cmd](*args)
                 # Display state table after command execution
-                self.display_state_table()
+                if self.verbose:
+                    self.display_state_table()
                 # Switch back to user mode after executing the command
                 self.switch_mode()
                 # Verbose is set to true in the shell, after running reset it
@@ -102,22 +103,22 @@ class System:
                 self.job_queue.append(pcb)
 
         self.scheduler.schedule_jobs()
-        if (self.verbose):
-            self.print_PCBs()
+        # if (self.verbose):
+        #     self.print_PCBs()
 
-    def print_PCBs(self):
-        for pcb in self.ready_queue + self.job_queue + self.io_queue + self.terminated_queue:
-            print(f"PCB: {pcb['file']}")
-            print(f"  Arrival time: {pcb['arrival_time']}")
-            print(f"  Start time: {pcb['start_time']}")
-            print(f"  End time: {pcb['end_time']}")
-            print(f"  Waiting time: {pcb['waiting_time']}")
-            print(f"  Execution time: {pcb['execution_time']}")
-            print(f"  State: {pcb['state']}")
-            print(f"  Registers: {pcb['registers']}")
-            print(
-                f"  Memory: {pcb['loader']} - {pcb['loader'] + pcb['byte_size']}")
-            print()
+    # def print_PCBs(self):
+    #     for pcb in self.ready_queue + self.job_queue + self.io_queue + self.terminated_queue:
+    #         print(f"PCB: {pcb['file']}")
+    #         print(f"  Arrival time: {pcb['arrival_time']}")
+    #         print(f"  Start time: {pcb['start_time']}")
+    #         print(f"  End time: {pcb['end_time']}")
+    #         print(f"  Waiting time: {pcb['waiting_time']}")
+    #         print(f"  Execution time: {pcb['execution_time']}")
+    #         print(f"  State: {pcb['state']}")
+    #         print(f"  Registers: {pcb['registers']}")
+    #         print(
+    #             f"  Memory: {pcb['loader']} - {pcb['loader'] + pcb['byte_size']}")
+    #         print()
 
     def createPCB(self, pc, filepath):
         pid = self.pid + 1
