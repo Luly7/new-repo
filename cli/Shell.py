@@ -29,7 +29,6 @@ class ShellMode(Modes):
                 return None
             if cmd == 'osx':
                 self.execute_terimal_command(args)
-                continue
             else:
                 self.handle_command(cmd, args)
             
@@ -42,8 +41,7 @@ class ShellMode(Modes):
             args.insert(0, 'osx')
             result = subprocess.run(args, text=True, capture_output=True)
             print(result.stdout)
-            if result.returncode != 0:
-                pass
+            
         except subprocess.CalledProcessError as e:
             print(f"Error: {e}")
             print(e.stderr)

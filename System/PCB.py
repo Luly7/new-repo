@@ -73,3 +73,11 @@ class PCB:
     
     def get_children(self):
         return self.children
+    
+    def update(self, program_info):
+        self.loader = program_info['loader']
+        self.byte_size = program_info['byte_size']
+        self.data_start = program_info['data_start']
+        self.data_end = program_info['data_end']
+        self.code_start = program_info['code_start']
+        self.code_end = program_info['code_end']

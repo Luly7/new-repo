@@ -7,13 +7,11 @@ class MemoryManager:
         self.memory = Memory(size)
         self.system = system
 
-    def load_file(self, filepath, *args):
-        """ Load file into memory """
+    def prepare_program(self, filepath):
+        """Validate program file and memory availability before loading."""
+
         if not filepath:
             return self.system_code(103, "Please specify the file path.")
-        
-        if len(args) > 0:
-            return self.system_code(103, "load command only takes one argument, the file path.")
                 
         try:
             with open(filepath, 'rb') as f:
@@ -23,16 +21,16 @@ class MemoryManager:
                 if not self._is_valid_loader(loader, byte_size, filepath):
                     return None
                 
-                pcb = self.system.createPCB(pc, filepath)
-                pcb['byte_size'] = byte_size
-                pcb['loader'] = loader
-                pcb['code_start'] = pc
-                pcb['code_end'] = loader + byte_size - 1
-                pcb['data_start'] = loader
-                pcb['data_end'] = pc - 1
-
-                self.system_code(1)
-                return pcb
+                return {
+                    'filepath': filepath,
+                    'byte_size': byte_size,
+                    'loader': loader,
+                    'pc': pc,
+                    'code_start': pc,
+                    'code_end': loader + byte_size - 1,
+                    'data_start': loader,
+                    'data_end': pc - 1
+                }
 
         except FileNotFoundError:
             print("File not found")
@@ -48,7 +46,6 @@ class MemoryManager:
         header = f.read(12)
         byte_size, pc, loader = unpack('III', header) 
         pc += loader
-        self.system.print(f" - Loading program with {byte_size} bytes, PC at {pc}, loader at {loader}")
         return byte_size, pc, loader
     
     def _is_valid_loader(self, loader, byte_size, filepath):
@@ -62,7 +59,7 @@ class MemoryManager:
                 
         return True
     
-    def _load_to_memory(self, pcb):
+    def load_to_memory(self, pcb):
 
         # Check if another pcb is already loaded at the loader address and not terminated
         for other_pcb in self.system.ready_queue:
@@ -88,3 +85,11 @@ class MemoryManager:
 
     def system_code(self, code, *args):
         self.system.system_code(code, *args)
+
+    def check_memory_available(self, pcb):
+        for existing_job in self.system.ready_queue:
+            if ((pcb['loader'] < existing_job['code_end'] and pcb['loader'] + pcb['byte_size'] > existing_job['code_start']) or 
+               (pcb['loader'] + pcb['byte_size'] > existing_job['code_start'] and pcb['loader'] < existing_job['code_end'])):
+                # There is overlap in memory
+                return False
+        return True

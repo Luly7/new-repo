@@ -14,8 +14,14 @@ class CPU:
         self.z  = 9  # Zero Flag
         self.sb = 10 # Status Byte
         self.pc = 11 # Program Counter
+
         self.verbose = False
+        self.running = False
+
         self.ops = {
+                # System Calls
+                "SWI": self._swi,
+                
                 # Arithmetic
                 "ADD": self._add,
                 "SUB": self._sub,
@@ -51,54 +57,30 @@ class CPU:
     def system_call(self, code):
         self.system.system_code(code)
 
-    def run_pcb(self, pcb, verbose=False):
-        if verbose: self.verbose = True
-        self.setPC(pcb['start_line'])
+    # def run_pcb(self, pcb, verbose=False):
+    #     if verbose: self.verbose = True
+    #     self.setPC(pcb['start_line'])
     
     def run_program(self, pcb, verbose=False):
         pcb['start_time'] = self.system.clock.time
         if verbose: self.verbose = True
+
+        # Restor CPU state from PCB
         self.registers = pcb['registers'].copy()
-        code_start = pcb['code_start']
-        code_end = pcb['code_end']
         self.registers[self.pc] = pcb['pc']
-        pcb.running()
-        running = True
-        while running and self.registers[self.pc] < code_end:
+
+        self.running = True
+
+        while self.running and self.registers[self.pc] < pcb['code_end']:
             instruction = self._fetch()
             opcode, operands = self._decode(instruction)
 
-            if opcode == "SWI":
-                swi = operands[0]
-                if swi == 1:
-                    pcb.registers = self.registers.copy()
-                    pcb.terminated()
-                    pcb['end_time'] = self.system.clock.time
-                    self.system_call(0)
-                    if self.verbose:
-                        print("End of program")
-                    self.verbose = False
-                    break
-                elif swi == 2:
-                    print(f'Result of operations: {self.registers[0]}')
-                    continue
-                elif swi == 10:
-                    pcb['registers'] = self.registers.copy()
-                    self.system.fork(pcb)
-                    self.registers = pcb['registers'].copy()
-                    continue
 
-            if opcode in self.ops:
-                self.ops[opcode](operands)
-                if self.verbose:
-                    print(self.registers)
-                self.system.clock.increment()
-                pcb.execution_time += 1
-            else:
-                self.system_call(103)
-                print(f"Unknown opcode: {opcode}")
-                self.verbose = False
+            if not self._execute(opcode, operands, pcb):
                 break
+
+            self.system.clock.increment()
+            pcb.execution_time += 1
 
             if self.registers[self.pc] >= len(self.memory):
                 self.system_call(110)
@@ -106,10 +88,45 @@ class CPU:
                 self.verbose = False
                 break
 
-    def _swi(self, operands):
-        self.system_call(0)
-        print("End of program")
-        return None
+    def _execute(self, opcode, operands, pcb):
+        if opcode == "SWI":
+            return self._swi(operands, pcb)
+            
+
+        elif opcode in self.ops:
+            self.ops[opcode](operands)
+            return True
+        
+        else:
+            self.system_call(103)
+            print(f"Unknown opcode: {opcode}")
+            self.verbose = False
+            self.running = False
+            return False
+
+    def _swi(self, operands, pcb):
+        swi = int(operands[0])
+        if swi == 1: # End of file
+            pcb.registers = self.registers.copy()
+            pcb.terminated()
+            # pcb['end_time'] = self.system.clock.time
+            self.system_call(0)
+            if self.verbose:
+                print("End of program")
+            self.verbose = False
+            self.running = False
+            return False
+        
+        elif swi == 2: # Print result (register 0)
+            print(f'Result of operations: {self.registers[0]}')
+            
+        elif swi == 10:
+            pcb['registers'] = self.registers.copy()
+            self.system.fork(pcb)
+            self.registers = pcb['registers'].copy()
+
+        return True
+            
 
     def _add(self, operands):
         """ 
@@ -119,7 +136,7 @@ class CPU:
         first_register, second_register, third_register, _, _ = operands
         self.registers[first_register] = self.registers[second_register] + self.registers[third_register]
         if self.verbose:
-            print(f" - ADD {self.registers[second_register] + self.registers[third_register]} ({third_register}) = {self.registers[second_register]} ({second_register}) + {self.registers[third_register]} ({third_register})")
+            print(f"\tADD\t{self.registers[second_register] + self.registers[third_register]} ({third_register}) = {self.registers[second_register]} ({second_register}) + {self.registers[third_register]} ({third_register})\t{self.registers}")
 
     def _sub(self, operands):
         """
@@ -129,7 +146,7 @@ class CPU:
         first_register, second_register, third_register, _, _ = operands
         self.registers[first_register] = self.registers[second_register] - self.registers[third_register]
         if self.verbose:
-            print(f" - SUB {self.registers[second_register] - self.registers[third_register]} ({third_register}) = {self.registers[second_register]} ({second_register}) - {self.registers[third_register]} ({third_register})")
+            print(f"\tSUB\t{self.registers[second_register] - self.registers[third_register]} ({third_register}) = {self.registers[second_register]} ({second_register}) - {self.registers[third_register]} ({third_register})\t{self.registers}")
 
     def _mul(self, operands):
         """
@@ -139,7 +156,7 @@ class CPU:
         first_register, second_register, third_register, _, _ = operands
         self.registers[first_register] = self.registers[second_register] * self.registers[third_register]
         if self.verbose:
-            print(f" - MUL {self.registers[second_register] * self.registers[third_register]} ({third_register}) = {self.registers[second_register]} ({second_register}) * {self.registers[third_register]} ({third_register})")
+            print(f"\tMUL\t{self.registers[second_register] * self.registers[third_register]} ({third_register}) = {self.registers[second_register]} ({second_register}) * {self.registers[third_register]} ({third_register})\t{self.registers}")
 
             
     def _div(self, operands):
@@ -156,7 +173,7 @@ class CPU:
         
         self.registers[first_register] = self.registers[second_register] // self.registers[third_register]
         if self.verbose:
-            print(f" - DIV {self.registers[second_register] // self.registers[third_register]} ({first_register}) = {self.registers[second_register]} ({second_register}) / {self.registers[third_register]} ({third_register})")
+            print(f"\tDIV\t{self.registers[second_register] // self.registers[third_register]} ({first_register}) = {self.registers[second_register]} ({second_register}) / {self.registers[third_register]} ({third_register})\t{self.registers}")
 
 
     def _mov(self, operands):
@@ -168,7 +185,7 @@ class CPU:
         first_register, second_register, *_= operands
         self.registers[first_register] = self.registers[second_register]
         if self.verbose:
-            print(f" - MOV {first_register} <= {second_register}")
+            print(f"\tMOV\tR{first_register} <= R{second_register}\t\t\t{self.registers}")
 
 
     def _mvi(self, operands):
@@ -182,7 +199,7 @@ class CPU:
         immediate_value = struct.unpack('<I', bytes(immediate_value_bytes))[0]
         self.registers[register] = immediate_value
         if self.verbose:
-            print(f" - MVI {register} <= {immediate_value}")
+            print(f"\tMVI\tR{register} <= {immediate_value}\t\t\t{self.registers}")
 
     def _adr(self, operands):
         """
@@ -195,7 +212,7 @@ class CPU:
         address = struct.unpack('<I', bytes(address_bytes))[0]
         self.registers[register] = address
         if self.verbose:
-            print(f" - ADR {register} <= {address}")
+            print(f"\tADR\tR{register} <= {address}\t\t\t{self.registers}")
 
     def _str(self, operands):
         """

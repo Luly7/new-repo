@@ -25,7 +25,7 @@ class System:
     def __init__(self):
         self.clock = Clock()
         self.scheduler = Scheduler(self)
-        self.memoryManager = MemoryManager(self, '1K')
+        self.memoryManager = MemoryManager(self, '40B')
         self.memory = self.memoryManager.memory
         self.CPU = CPU(self.memory, self)
         self.mode = USER_MODE
@@ -68,9 +68,6 @@ class System:
                 self.print(f"Executing command: {cmd}")
                 # Look up the command in the dictionary and execute it
                 self.commands[cmd](*args)
-                # Display state table after command execution
-                if self.verbose:
-                    self.display_state_table()
                 # Switch back to user mode after executing the command
                 self.switch_mode()
                 # Verbose is set to true in the shell, after running reset it
@@ -98,30 +95,19 @@ class System:
             filepath = args[i]
             arrival_time = int(args[i+1])
 
-            pcb = self.memoryManager.load_file(filepath)
-            if pcb:
+            program_info = self.memoryManager.prepare_program(filepath)
+            if program_info:
+                pcb = self.create_pcb(program_info['pc'], filepath)
+                pcb.update(program_info)
                 pcb.set_arrival_time(arrival_time)
                 self.job_queue.append(pcb)
+            
+        if self.verbose:
+            self.display_state_table()
 
         self.scheduler.schedule_jobs()
-        # if (self.verbose):
-        #     self.print_PCBs()
 
-    # def print_PCBs(self):
-    #     for pcb in self.ready_queue + self.job_queue + self.io_queue + self.terminated_queue:
-    #         print(f"PCB: {pcb['file']}")
-    #         print(f"  Arrival time: {pcb['arrival_time']}")
-    #         print(f"  Start time: {pcb['start_time']}")
-    #         print(f"  End time: {pcb['end_time']}")
-    #         print(f"  Waiting time: {pcb['waiting_time']}")
-    #         print(f"  Execution time: {pcb['execution_time']}")
-    #         print(f"  State: {pcb['state']}")
-    #         print(f"  Registers: {pcb['registers']}")
-    #         print(
-    #             f"  Memory: {pcb['loader']} - {pcb['loader'] + pcb['byte_size']}")
-    #         print()
-
-    def createPCB(self, pc, filepath):
+    def create_pcb(self, pc, filepath):
         pid = self.pid + 1
         self.pid += 1
         pcb = PCB(pid, pc)
@@ -137,6 +123,8 @@ class System:
             if pcb['state'] == 'TERMINATED' and len(pcb.get_children()) == 0:
                 self.memoryManager.release_resources(pcb)
                 self.terminated_queue.append(pcb)
+                pcb['end_time'] = self.clock.time
+                
             elif pcb['state'] == 'WAITING':
                 self.io_queue.append(pcb)
                 break
@@ -144,7 +132,7 @@ class System:
                 self.ready_queue.append(pcb)
                 break
 
-        self.scheduler.schedule_jobs()
+        # self.scheduler.schedule_jobs()
 
         if pcb['state'] == 'TERMINATED' and pcb.has_children():
             self.wait(pcb)
@@ -155,6 +143,18 @@ class System:
             self.job_queue.append(pcb)
             self.memoryManager._load_to_memory(pcb)
             self.print(f"Loaded program: {pcb}")
+        # Display state table after command execution
+        if self.verbose:
+            self.display_state_table()
+
+    def handle_check_memory_available(self, pcb):
+        try:
+            if self.memoryManager.check_memory_available(pcb):
+                return True
+        except Exception as e:
+            print(e)
+
+        return False
 
     def run_program(self, *args):
         if len(self.job_queue) == 0 and len(self.ready_queue) == 0:
@@ -175,8 +175,13 @@ class System:
                 pcb = job
                 break
         self.print(f"Running program: {pcb}")
+        
 
         self.CPU.run_program(pcb, self.verbose)
+
+        if self.verbose:
+            self.display_state_table()
+
         return pcb.registers[0]
 
     def coredump(self):
