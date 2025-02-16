@@ -62,7 +62,7 @@ class CPU:
     #     self.setPC(pcb['start_line'])
     
     def run_program(self, pcb, verbose=False):
-        pcb['start_time'] = self.system.clock.time
+        # pcb['start_time'] = self.system.clock.time
         if verbose: self.verbose = True
 
         # Restor CPU state from PCB
@@ -109,16 +109,29 @@ class CPU:
         if swi == 1: # End of file
             pcb.registers = self.registers.copy()
             pcb.terminated()
-            # pcb['end_time'] = self.system.clock.time
             self.system_call(0)
             if self.verbose:
-                print("End of program")
+                print("\tEnd of program")
             self.verbose = False
             self.running = False
             return False
         
         elif swi == 2: # Print result (register 0)
             print(f'Result of operations: {self.registers[0]}')
+
+        elif swi == 20: # Wait for IO
+            pcb['registers'] = self.registers.copy()
+            pcb['pc'] = self.registers[self.pc]
+
+            pcb.waiting()
+            if self.verbose:
+                print("Waiting for IO")
+            self.verbose = False
+            self.running = False
+            return False
+            
+
+
             
         elif swi == 10:
             pcb['registers'] = self.registers.copy()
