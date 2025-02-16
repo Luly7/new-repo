@@ -53,13 +53,15 @@ class PCB:
         if self.start_time == None:
             self.start_time = time
             self.response_time = time - self.arrival_time
+            self.waiting_time = time - self.arrival_time
 
     def running(self): 
         self.state = 'RUNNING'
     def waiting(self):
         self.state = 'WAITING'
-    def terminated(self):
+    def terminated(self, time):
         self.state = 'TERMINATED'
+        self.end_time = time
     def set_arrival_time(self, time):    
         self.arrival_time = time
 

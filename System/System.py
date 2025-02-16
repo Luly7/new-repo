@@ -122,40 +122,40 @@ class System:
         pcb.running()
         self.print(f"Running program: {pcb}")
 
-        while pcb['state'] != 'TERMINATED':
+        self.CPU.run_program(pcb, self.verbose)
+        # while pcb['state'] != 'TERMINATED':
 
-            self.CPU.run_program(pcb, self.verbose)
             
-            if pcb['state'] == 'TERMINATED' and len(pcb.get_children()) == 0:
-                self.memory_manager.release_resources(pcb)
-                self.terminated_queue.append(pcb)
-                pcb['end_time'] = self.clock.time
+        #     if pcb['state'] == 'TERMINATED' and len(pcb.get_children()) == 0:
+        #         self.memory_manager.free_memory(pcb)
+        #         self.terminated_queue.append(pcb)
+        #         pcb['end_time'] = self.clock.time
                 
-            elif pcb['state'] == 'WAITING':
-                self.memory_manager.release_resources(pcb)
-                self.io_queue.append(pcb)
-                if self.verbose:
-                    self.display_state_table()
-                n = random.randint(1, 50)
-                self.clock.time += n
-                self.print(f"Program {pcb} is waiting for {n} cycles.")
-                self.io_queue.remove(pcb)
-                pcb.ready(self.clock.time)
-                self.ready_queue.append(pcb)
-                break
+        #     elif pcb['state'] == 'WAITING':
+        #         self.memory_manager.free_memory(pcb)
+        #         self.io_queue.append(pcb)
+        #         if self.verbose:
+        #             self.display_state_table()
+        #         n = random.randint(1, 50)
+        #         self.clock.time += n
+        #         self.print(f"Program {pcb} is waiting for {n} cycles.")
+        #         self.io_queue.remove(pcb)
+        #         pcb.ready(self.clock.time)
+        #         self.ready_queue.append(pcb)
+        #         break
 
 
-            elif pcb['state'] == 'READY':
-                self.ready_queue.append(pcb)
-                break
+        #     elif pcb['state'] == 'READY':
+        #         self.ready_queue.append(pcb)
+        #         break
 
-        if pcb['state'] == 'TERMINATED' and pcb.has_children():
-            self.wait(pcb)
+        # if pcb['state'] == 'TERMINATED' and pcb.has_children():
+        #     self.wait(pcb)
 
     def handle_load(self, filepath):
         program_info = self.memory_manager.prepare_program(filepath)
         if program_info:
-            pcb = self.create_pcb(program_info['pc'], filepath)
+            pcb = self.create_pcb(program_info, filepath)
             pcb.update(program_info)
             self.memory_manager.load_to_memory(pcb)
             self.job_queue.append(pcb)
@@ -170,6 +170,23 @@ class System:
         except Exception as e:
             print(e)
 
+        return False
+    
+    def handle_load_to_memory(self, pcb):
+        try:
+            if self.memory_manager.load_to_memory(pcb):
+                return True
+        except Exception as e:
+            print(e)
+
+        return False
+    
+    def handle_free_memory(self, pcb):
+        if self.memory_manager.free_memory(pcb):
+            self.print(f"Memory freed for {pcb}")
+            return True
+        else:
+            print(f"Error freeing memory for {pcb}")
         return False
 
     def run_program(self, *args):

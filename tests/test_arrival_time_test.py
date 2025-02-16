@@ -18,15 +18,15 @@ class TestArrivalTime(unittest.TestCase):
         pcb1 = None
         pcb2 = None
         for file in self.system.terminated_queue:
-            if file['file'] == file1:
+            if file.file == file1:
                 pcb1 = file
-            if file['file'] == file2:
+            if file.file == file2:
                 pcb2 = file
 
-        self.assertEqual(pcb1['arrival_time'], 0)
-        self.assertEqual(pcb1['waiting_time'], 0)
-        self.assertEqual(pcb2['arrival_time'], 2)
-        self.assertEqual(pcb2['waiting_time'], 1)
+        self.assertEqual(pcb1.arrival_time, 0)
+        self.assertEqual(pcb1.waiting_time, 0)
+        self.assertEqual(pcb2.arrival_time, 2)
+        self.assertEqual(pcb2.waiting_time, 1)
 
 
 

@@ -108,7 +108,7 @@ class CPU:
         swi = int(operands[0])
         if swi == 1: # End of file
             pcb.registers = self.registers.copy()
-            pcb.terminated()
+            pcb.terminated(self.system.clock.time)
             self.system_call(0)
             if self.verbose:
                 print("\tEnd of program")
