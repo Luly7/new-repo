@@ -1,25 +1,36 @@
 class PCB:
     def __init__(self, pid, pc, registers=None, state="NEW"):
         self.pid = pid
+        self.file = None
+
+        # Registers
         self.pc = pc
         if registers:
             self.registers = registers
         else:
             self.registers = [0] * 12
+
+        # States
         self.state = state
         self.states = ['NEW', 'READY', 'RUNNING', 'WAITING', 'TERMINATED']
+
+        # Code Sections
         self.loader = None
         self.byte_size = None
         self.data_start = None
         self.data_end = None
         self.code_start = None
         self.code_end = None
+
+        # Metrics
         self.execution_time = 0
         self.waiting_time = 0
         self.arrival_time = None
         self.start_time = None
         self.end_time = None
-        self.file = None
+        self.response_time = None
+
+        # Children
         self.children = []
 
     def __str__(self):
@@ -37,8 +48,12 @@ class PCB:
     def __compare__(self, other):
         return self.pid == other.pid
     
-    def ready(self):
+    def ready(self, time):
         self.state = 'READY'
+        if self.start_time == None:
+            self.start_time = time
+            self.response_time = time - self.arrival_time
+
     def running(self): 
         self.state = 'RUNNING'
     def waiting(self):
