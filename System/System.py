@@ -1,6 +1,7 @@
 import os
 import sys
 from tabulate import tabulate
+import random
 
 try:
     from hardware.CPU import CPU
@@ -25,13 +26,11 @@ class System:
     def __init__(self):
         self.clock = Clock()
         self.scheduler = Scheduler(self)
-        self.memoryManager = MemoryManager(self, '40B')
-        self.memory = self.memoryManager.memory
+        self.memory_manager = MemoryManager(self, '100B')
+        self.memory = self.memory_manager.memory
         self.CPU = CPU(self.memory, self)
         self.mode = USER_MODE
-        self.loader = None
         self.verbose = False
-        self.programs = {}
         self.errors = []
         self.system_codes = SYSTEM_CODES
         self.pid = 0
@@ -61,11 +60,9 @@ class System:
     def call(self, cmd, *args):
         if cmd in self.commands:
             try:
-
                 # Switch to kernel mode to execute the command
                 self.switch_mode()
-                print()
-                self.print(f"Executing command: {cmd}")
+                self.print(f"\nExecuting command: {cmd}")
                 # Look up the command in the dictionary and execute it
                 self.commands[cmd](*args)
                 # Switch back to user mode after executing the command
@@ -95,23 +92,30 @@ class System:
             filepath = args[i]
             arrival_time = int(args[i+1])
 
-            program_info = self.memoryManager.prepare_program(filepath)
-            if program_info:
-                pcb = self.create_pcb(program_info['pc'], filepath)
-                pcb.update(program_info)
-                pcb.set_arrival_time(arrival_time)
-                self.job_queue.append(pcb)
+            program_info = self.memory_manager.prepare_program(filepath)
+            
+            pcb = self.create_pcb(program_info, arrival_time)
+            self.job_queue.append(pcb)
             
         if self.verbose:
             self.display_state_table()
 
         self.scheduler.schedule_jobs()
 
-    def create_pcb(self, pc, filepath):
+    def create_pcb(self, program_info, arrival_time):
         pid = self.pid + 1
         self.pid += 1
-        pcb = PCB(pid, pc)
-        pcb['file'] = filepath
+
+        pcb = PCB(pid, program_info['pc'])
+        pcb.file = program_info['filepath']
+        pcb.loader = program_info['loader']
+        pcb.byte_size = program_info['byte_size']
+        pcb.data_start = program_info['data_start']
+        pcb.data_end = program_info['data_end']
+        pcb.code_start = program_info['code_start']
+        pcb.code_end = program_info['code_end']
+        pcb.arrival_time = arrival_time
+
         return pcb
 
     def run_pcb(self, pcb):
@@ -119,37 +123,49 @@ class System:
         self.print(f"Running program: {pcb}")
 
         while pcb['state'] != 'TERMINATED':
+
             self.CPU.run_program(pcb, self.verbose)
+            
             if pcb['state'] == 'TERMINATED' and len(pcb.get_children()) == 0:
-                self.memoryManager.release_resources(pcb)
+                self.memory_manager.release_resources(pcb)
                 self.terminated_queue.append(pcb)
                 pcb['end_time'] = self.clock.time
                 
             elif pcb['state'] == 'WAITING':
+                self.memory_manager.release_resources(pcb)
                 self.io_queue.append(pcb)
-                break
-            elif pcb['state'] == 'READY':
+                if self.verbose:
+                    self.display_state_table()
+                n = random.randint(1, 50)
+                self.clock.time += n
+                self.print(f"Program {pcb} is waiting for {n} cycles.")
+                self.io_queue.remove(pcb)
+                pcb.ready(self.clock.time)
                 self.ready_queue.append(pcb)
                 break
 
-        # self.scheduler.schedule_jobs()
+
+            elif pcb['state'] == 'READY':
+                self.ready_queue.append(pcb)
+                break
 
         if pcb['state'] == 'TERMINATED' and pcb.has_children():
             self.wait(pcb)
 
     def handle_load(self, filepath):
-        pcb = self.memoryManager.load_file(filepath)
-        if pcb:
+        program_info = self.memory_manager.prepare_program(filepath)
+        if program_info:
+            pcb = self.create_pcb(program_info['pc'], filepath)
+            pcb.update(program_info)
+            self.memory_manager.load_to_memory(pcb)
             self.job_queue.append(pcb)
-            self.memoryManager._load_to_memory(pcb)
-            self.print(f"Loaded program: {pcb}")
         # Display state table after command execution
         if self.verbose:
             self.display_state_table()
 
     def handle_check_memory_available(self, pcb):
         try:
-            if self.memoryManager.check_memory_available(pcb):
+            if self.memory_manager.check_memory_available(pcb):
                 return True
         except Exception as e:
             print(e)
