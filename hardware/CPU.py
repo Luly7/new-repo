@@ -106,6 +106,8 @@ class CPU:
 
     def _swi(self, operands, pcb):
         swi = int(operands[0])
+        if self.verbose:
+            print(f"\tSWI\t{swi}")
         if swi == 1: # End of file
             pcb.registers = self.registers.copy()
             pcb.terminated(self.system.clock.time)

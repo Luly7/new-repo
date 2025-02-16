@@ -26,7 +26,7 @@ class System:
     def __init__(self):
         self.clock = Clock()
         self.scheduler = Scheduler(self)
-        self.memory_manager = MemoryManager(self, '100B')
+        self.memory_manager = MemoryManager(self, '200B')
         self.memory = self.memory_manager.memory
         self.CPU = CPU(self.memory, self)
         self.mode = USER_MODE
@@ -49,6 +49,10 @@ class System:
             "registers": lambda: print(self.CPU),
             "execute": self.execute,
             "clock": lambda: print(self.clock),
+            "job_queue": lambda: print(self.job_queue),
+            "ready_queue": lambda: print(self.ready_queue),
+            "io_queue": lambda: print(self.io_queue),
+            "terminated_queue": lambda: print(self.terminated_queue),
         }
 
     def switch_mode(self):
@@ -245,7 +249,7 @@ class System:
         if (self.verbose):
             print(txt)
 
-    def log_error(self, code, program=None):
+    def log_error(self, code, message=None, program=None):
         if code not in self.system_codes:
             print(self.system_codes[100])
 
@@ -253,17 +257,18 @@ class System:
             self.errors.append({
                 'program': program,
                 'code': code,
-                'message': self.system_codes[code]},
+                'message': message,
+                'code_error': self.system_codes[code]},
             )
         print(self.system_codes[code])
 
     def system_code(self, code, message=None, program=None):
+        if message:
+            print(message)
         if code in (0, 1):
-            if message:
-                print(message)
             return
 
-        self.log_error(code, program)
+        self.log_error(code, message, program)
 
     def fork(self, parent_pcb):
         new_pid = self.pid + 1
