@@ -159,8 +159,8 @@ class System:
     def handle_load(self, filepath):
         program_info = self.memory_manager.prepare_program(filepath)
         if program_info:
-            pcb = self.create_pcb(program_info, filepath)
-            pcb.update(program_info)
+            pcb = self.create_pcb(program_info, self.clock.time)
+            # pcb.update(program_info)
             self.memory_manager.load_to_memory(pcb)
             self.job_queue.append(pcb)
         # Display state table after command execution
@@ -211,10 +211,16 @@ class System:
             if job['file'] == program:
                 pcb = job
                 break
+        self.job_queue.remove(pcb)
         self.print(f"Running program: {pcb}")
         
-
+        pcb.start_time = self.clock.time
         self.CPU.run_program(pcb, self.verbose)
+
+        if pcb['state'] == 'TERMINATED':
+            self.memory_manager.free_memory(pcb)
+            self.terminated_queue.append(pcb)
+            pcb['end_time'] = self.clock.time
 
         if self.verbose:
             self.display_state_table()
