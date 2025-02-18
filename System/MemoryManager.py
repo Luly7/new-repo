@@ -115,8 +115,8 @@ class MemoryManager:
                 }
 
         except FileNotFoundError:
-            print("File not found")
-            self.system_code(109)
+            # print("File not found")
+            self.system_code(109, f"File not found: {filepath}")
             return None
         except Exception as e:
             self.system_code(100)

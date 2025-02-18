@@ -3,8 +3,13 @@ import random
 class Scheduler:
     def __init__(self, system):
         self.system = system
+        self.scheduling_algorithms = ['FCFS', 'SJF', 'RR', 'Priority']
+        self.scheduling_algorithm = 'FCFS'
+        
 
     def schedule_jobs(self):
+        """ Schedule jobs in the system."""
+        start_time = self.system.clock.time
         self._sort_ready_queue()
 
         while self.system.job_queue or self.system.ready_queue or self.system.io_queue: # If theres programs one of the queues
@@ -23,6 +28,11 @@ class Scheduler:
                 # If no job is ready increment clock
                 self.system.clock += 1
                 self.system.print("No jobs ready to run")
+        end_time = self.system.clock.time
+        n_jobs = len(self.system.terminated_queue)
+        total_waiting_time = sum([pcb.waiting_time for pcb in self.system.terminated_queue])
+        average_waiting_time = total_waiting_time / n_jobs
+        print(f"\n{n_jobs} jobs completed in {end_time - start_time} time units (start: {start_time}, end: {end_time})\nThroughput: {n_jobs / (end_time - start_time)}\nAverage waiting time: {average_waiting_time}")
 
     def check_new_jobs(self):
         """ Move jobs from job queue to ready queue, if current time is past programs arrival time."""

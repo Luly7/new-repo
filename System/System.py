@@ -26,7 +26,7 @@ class System:
     def __init__(self):
         self.clock = Clock()
         self.scheduler = Scheduler(self)
-        self.memory_manager = MemoryManager(self, '200B')
+        self.memory_manager = MemoryManager(self, '1K')
         self.memory = self.memory_manager.memory
         self.CPU = CPU(self.memory, self)
         self.mode = USER_MODE
@@ -98,8 +98,11 @@ class System:
 
             program_info = self.memory_manager.prepare_program(filepath)
             
-            pcb = self.create_pcb(program_info, arrival_time)
-            self.job_queue.append(pcb)
+            if program_info:
+                pcb = self.create_pcb(program_info, arrival_time)
+                self.job_queue.append(pcb)
+            else:
+                return None
             
         if self.verbose:
             self.display_state_table()
@@ -307,20 +310,24 @@ class System:
         Display a tabulated view of all processes in different queues
         """
         headers = ["PID", "Program", "State",
-                   "Queue", "Arrival", "Start", "End"]
+                   "Queue", "Arrival", "Start", "End", "Turnaround", "Waiting", "Response"]
         table_data = []
 
         # Helper function to add queue entries to table data
         def add_queue_entries(queue_name, queue):
             for pcb in queue:
                 table_data.append([
-                    pcb['pid'],
-                    pcb['file'],
-                    pcb['state'],
+                    pcb.pid,
+                    pcb.file,
+                    pcb.state,
                     queue_name,
-                    pcb['arrival_time'],
-                    pcb['start_time'],
-                    pcb['end_time']
+                    pcb.arrival_time,
+                    pcb.start_time,
+                    pcb.end_time,
+                    pcb.turnaround_time,
+                    pcb.waiting_time,
+                    pcb.response_time
+
                 ])
 
         # Add entries from all queues

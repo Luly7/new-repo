@@ -23,12 +23,13 @@ class PCB:
         self.code_end = None
 
         # Metrics
-        self.execution_time = 0
-        self.waiting_time = 0
         self.arrival_time = None
         self.start_time = None
         self.end_time = None
+        self.waiting_time = 0
+        self.execution_time = 0
         self.response_time = None
+        self.turnaround_time = None
 
         # Children
         self.children = []
@@ -52,16 +53,22 @@ class PCB:
         self.state = 'READY'
         if self.start_time == None:
             self.start_time = time
-            self.response_time = time - self.arrival_time
             self.waiting_time = time - self.arrival_time
 
     def running(self): 
         self.state = 'RUNNING'
+        if self.response_time == None:
+            self.response_time = self.start_time - self.arrival_time
+
     def waiting(self):
         self.state = 'WAITING'
+
     def terminated(self, time):
         self.state = 'TERMINATED'
         self.end_time = time
+        self.turnaround_time = self.end_time - self.arrival_time
+        self.waiting_time = self.turnaround_time - self.execution_time
+
     def set_arrival_time(self, time):    
         self.arrival_time = time
 

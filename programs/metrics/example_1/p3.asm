@@ -1,0 +1,4 @@
+MVI R1 1 ;
+MVI R1 2 ;
+MVI R1 3 ;
+SWI 1 ;
