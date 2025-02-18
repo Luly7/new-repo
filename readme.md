@@ -8,6 +8,19 @@ CS6510 - Spring 2025
 
 Start the OS by running the main.py file. This starts the system and the command line interface
 
+# Execute
+
+`shell > execute <program1.osx> <arrival time> [<program2.osx>] [<arrival_time_2>] [-v]`
+
+Note: Can handle as many programs as the user wants to provide.
+User provides the program to run and the arrival time of that program, must be in program / arrival time pairs. This will load and run the program. The system will sort the programs by arrival time. 
+Optionally the user can type `-v` to run the programs in verbose mode.
+
+# Compile a program
+
+`shell > osx <program1.asm> <memory_location> [-v]`
+
+This will compile assembly code into the executable .osx extension. Provide the starting location that the program should be loaded to.
 # Load a program
 
 `shell > load test.osx [-v]`
