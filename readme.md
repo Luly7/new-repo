@@ -68,3 +68,23 @@ The program will continue to run until the user runs the command `exit`. This wi
 # Run tests
 
 Run the file tests\run_tests.py. This will run multiple tests to ensure everything is working as expected. It includes unit tests as well as end to end tests.
+
+# Development
+
+## Generate Class Diagrams
+
+There are two ways to generate class diagrams:
+
+1. Using Cursor (Recommended):
+   - Press `Cmd/Ctrl + K`
+   - Type "Generate class diagram"
+   - Select the files you want to include in the diagram
+
+2. Using pyreverse:
+   ```bash
+   pip install pylint
+   pyreverse -o png -p OS .
+   ```
+   This will create two files:
+   - `classes_OS.png`: Shows class diagram
+   - `packages_OS.png`: Shows package diagram
