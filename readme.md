@@ -73,4 +73,4 @@ Run the file tests\run_tests.py. This will run multiple tests to ensure everythi
 
 # Class Diagrams
 
-![Class diagram] (https://github.com/Luly7/new-repo/blob/main/directions/M3_class_diagram.drawio.png)
+![Class diagram](https://github.com/Luly7/new-repo/blob/main/directions/M3_class_diagram.drawio.png)
